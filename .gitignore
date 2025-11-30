@@ -1,0 +1,19 @@
+# VS Code
+.vscode/
+
+# Build artifacts
+build/
+*.o
+*.out
+*.exe
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Logs and temp
+*.log
+*.tmp
+*.swp
