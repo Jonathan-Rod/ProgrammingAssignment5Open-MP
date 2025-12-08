@@ -34,7 +34,7 @@ void initialize_default_parameters(SimulationParams *params) {
 void calculate_derived_parameters(SimulationParams *params) {
   // Calcular espaciado espacial
   if (params->n_volumes > 1) {
-    params->dx = params->L / (params->n_volumes - 1);
+    params->dx = params->L / (params->n_volumes);
   } else {
     params->dx = params->L;
   }
