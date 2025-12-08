@@ -64,7 +64,7 @@ double *allocate_temperature_field(int n_volumes) {
     return NULL;
   }
 
-  double *T = (double *)calloc(n_volumes, sizeof(double));
+  double *T = (double *)calloc(n_volumes+2, sizeof(double));
   if (T == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for temperature field\n");
     return NULL;
