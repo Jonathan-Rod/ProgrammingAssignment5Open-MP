@@ -11,10 +11,10 @@
 // CONSTANTES Y CONFIGURACIÓN
 // ============================================================================
 
-#define MAX_VOLUMES 1000000
+#define MAX_VOLUMES 1000
 #define MAX_FILENAME 256
 #define CSV_DELIMITER ","
-#define MAX_TIME_PROFILES 100
+#define MAX_TIME_PROFILES 1000000
 #define STABILITY_LIMIT 0.5  // Límite de Fourier number para esquema explícito
 
 // Configuración OpenMP por defecto
