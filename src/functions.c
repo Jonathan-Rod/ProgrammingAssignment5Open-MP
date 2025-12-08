@@ -1,4 +1,7 @@
+// %%writefile functions.c
+// #include "functions.h"
 #include "../include/functions.h"
+
 
 // ============================================================================
 // FUNCIONES DE INICIALIZACIÓN Y CONFIGURACIÓN
@@ -56,6 +59,11 @@ void calculate_derived_parameters(SimulationParams *params) {
   if (params->dx <= 0) {
     fprintf(stderr, "Error: dx must be positive\n");
   }
+  params->aW = params->k/params->dx;
+  params->aE = params->k/params->dx;
+  params->aP = params->rho_c * (params->dx / params->dt);
+  params->aP0 = params->rho_c * (params->dx / params->dt);
+  params->aEb = 2*(params->k/params->dx);
 }
 
 double *allocate_temperature_field(int n_volumes) {
@@ -100,8 +108,8 @@ int validate_parameters(const SimulationParams *params) {
   }
 
   // Verificar número de volúmenes
-  if (params->n_volumes < 3 || params->n_volumes > MAX_VOLUMES) {
-    fprintf(stderr, "Error: Number of volumes must be between 3 and %d\n",
+  if (params->n_volumes < 1 || params->n_volumes > MAX_VOLUMES) {
+    fprintf(stderr, "Error: Number of volumes must be between 1 and %d\n",
             MAX_VOLUMES);
     return 0;
   }
@@ -661,7 +669,7 @@ void run_correctness_test(void) {
   SimulationParams test_params;
   initialize_default_parameters(&test_params);
   test_params.n_volumes = 10;
-  test_params.n_time_steps = 100;
+  test_params.dt = 1;
   calculate_derived_parameters(&test_params);
 
   // Prueba 1: Condiciones de frontera
@@ -726,8 +734,8 @@ void test_explicit_calculation(void) {
   double *T_new = allocate_temperature_field(params.n_volumes);
 
   // Configurar perfil lineal
-  for (int i = 0; i < params.n_volumes; i++) {
-    T_old[i] = 100.0 - i * 20.0;  // 100, 80, 60, 40, 20
+  for (int i = 1; i <= params.n_volumes; i++) {
+    T_old[i] = 100.0 - (i-1) * 20.0;  // 100, 80, 60, 40, 20
   }
 
   // Calcular un paso explícito

@@ -1,3 +1,4 @@
+// %%writefile functions.h
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
@@ -52,6 +53,13 @@ typedef struct {
   double dt;          // Paso de tiempo [s]
   double total_time;  // Tiempo total de simulación [s]
   int n_time_steps;   // Número total de pasos de tiempo
+
+  // Node Coefficients
+  double aW;   // West point's coefficient
+  double aE;   // East point's coefficient
+  double aP;   // Point's coefficient
+  double aP0;  // Point's coefficient (Previous time step)
+  double aEb;  // East point's coefficient (at Boundary)
 
   // Para análisis de perfiles transitorios
   int n_profiles;                          // Número de perfiles a guardar
