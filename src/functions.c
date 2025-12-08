@@ -19,7 +19,7 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Parámetros temporales
   params->total_time = 850.0;  // Tiempo total de simulación [s]
-  params->dt = 0.001;          // Paso de tiempo [s] (1 ms)
+  params->dt = 0.01;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
   params->n_profiles = 0;
