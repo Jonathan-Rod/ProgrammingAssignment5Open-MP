@@ -211,9 +211,24 @@ void time_integration_sequential(double *T, const SimulationParams *params) {
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
                                         const SimulationParams *params) {
-  // TODO
+  int i; float b;
+  
+  // Contribution from BC 1
+  i = 1;
+  b = params->aE*T_old[i] + (params->aP0 - params->aE)*T_old[i];
+  T_new[i] = b/params->aP;
+  
+  for (int i = 2; i < params->n_volumes; i++) {//check
+    b = params->aW*T_old[i-1] + params->aE*T_old[i+1] + (params->aP0 - (params->aE+params->aW))*T_old[i];
+    T_new[i] = b/params->aP;
+  }
 
-  // Los bordes se manejan en apply_boundary_conditions
+  // Contribution from BC 2
+  i = -2;
+  b = params->aW*T_old[i-1] + (params->aP0 - (params->aE+params->aW))*T_old[i] + params->aEb*params->T_cooled;
+  T_new[i] = b/params->aP;
+
+  apply_boundary_conditions_sequential(T_new, params);
 }
 
 void apply_boundary_conditions_sequential(double *T,
@@ -452,7 +467,7 @@ void find_temperature_extremes(const double *T, int n_volumes, double *max_temp,
   *max_temp = T[0];
   *min_temp = T[0];
 
-  for (int i = 1; i < n_volumes; i++) {
+  for (int i = 0; i < n_volumes+2; i++) {
     if (T[i] > *max_temp) {
       *max_temp = T[i];
     }

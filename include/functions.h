@@ -291,8 +291,8 @@ void time_integration_sequential(double* T, const SimulationParams* params);
  *
  * Paso a paso:
  * 1. Para cada volumen interno:
- *    a. Calcula derivada segunda con diferencias finitas
- *    b. Aplica esquema forward Euler: T_new = T_old + alpha*dt*d²T/dx²
+ *    a. Calcula termino independiente de la nueva temperatura (b)
+ *    b. Aplica esquema backward Euler: T_new = b/T_old
  *    c. Almacena en arreglo temporal
  * 2. Maneja volúmenes frontera separadamente
  *
