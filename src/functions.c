@@ -414,8 +414,8 @@ double calculate_numerical_error(const double *T_numeric,
   int count = 0;
 
   // Verificar propiedades físicas básicas en lugar de solución analítica exacta
-  for (int i = 0; i < params->n_volumes; i++) {
-    double x = i * params->dx;
+  for (int i = 1; i < params->n_volumes+1; i++) {
+    double x = (params->dx/2) + i * params->dx; 
 
     // Propiedades físicas esperadas:
     // 1. Temperaturas deben estar entre T_cooled y T_initial
