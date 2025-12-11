@@ -72,7 +72,7 @@ double *allocate_temperature_field(int n_volumes) {
     return NULL;
   }
 
-  double *T = (double *)calloc(n_volumes+2, sizeof(double));
+  double *T = (double *)calloc(n_volumes, sizeof(double));
   if (T == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for temperature field\n");
     return NULL;
@@ -108,7 +108,7 @@ int validate_parameters(const SimulationParams *params) {
   }
 
   // Verificar número de volúmenes
-  if (params->n_volumes < 1 || params->n_volumes > MAX_VOLUMES) {
+  if (params->n_volumes < 3 || params->n_volumes > MAX_VOLUMES) {
     fprintf(stderr, "Error: Number of volumes must be between 1 and %d\n",
             MAX_VOLUMES);
     return 0;
@@ -414,7 +414,7 @@ double calculate_numerical_error(const double *T_numeric,
   int count = 0;
 
   // Verificar propiedades físicas básicas en lugar de solución analítica exacta
-  for (int i = 1; i < params->n_volumes+1; i++) {
+  for (int i = 0; i < params->n_volumes; i++) {
     double x = (params->dx/2) + i * params->dx; 
 
     // Propiedades físicas esperadas:
@@ -750,7 +750,7 @@ void test_explicit_calculation(void) {
 
   // Configurar perfil lineal
   for (int i = 1; i <= params.n_volumes; i++) {
-    T_old[i] = 100.0 - (i-1) * 20.0;  // 100, 80, 60, 40, 20
+    T_old[i] = 100.0 - (i) * 20.0;  // 100, 80, 60, 40, 20
   }
 
   // Calcular un paso explícito
