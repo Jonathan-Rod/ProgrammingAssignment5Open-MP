@@ -414,7 +414,7 @@ double calculate_numerical_error(const double *T_numeric,
   int count = 0;
 
   // Verificar propiedades físicas básicas en lugar de solución analítica exacta
-  for (int i = 0; i < params->n_volumes; i++) {
+  for (int i = 0; i < params->n_volumes-1; i++) {
     double x = (params->dx/2) + i * params->dx; 
 
     // Propiedades físicas esperadas:
@@ -749,7 +749,7 @@ void test_explicit_calculation(void) {
   double *T_new = allocate_temperature_field(params.n_volumes);
 
   // Configurar perfil lineal
-  for (int i = 1; i <= params.n_volumes; i++) {
+  for (int i = 1; i < params.n_volumes-1; i++) {
     T_old[i] = 100.0 - (i) * 20.0;  // 100, 80, 60, 40, 20
   }
 
