@@ -228,11 +228,11 @@ void solve_heat_equation_sequential(double *T, const SimulationParams *params) {
 
     double max_temp, min_temp;  // Por si explota fue aqui XD
     find_temperature_extremes(T, params->n_volumes, &max_temp, &min_temp);
-    print("Tmax: %.2f Tmin: %.2f\n", max_temp, min_temp);
+    printf("Tmax: %.2f Tmin: %.2f\n", max_temp, min_temp);
   }
 
   // 4. Calcula métricas de convergencia
-  calculate_convergence_metrics(T, params, current_time);
+  // calculate_convergence_metrics(T, params, current_time);
 
   free_temperature_field(T_new);
   printf("Sequential simulation completed\n");
