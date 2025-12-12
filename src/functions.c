@@ -211,20 +211,20 @@ void time_integration_sequential(double *T, const SimulationParams *params) {
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
                                         const SimulationParams *params) {
-  int i; float b;
+  int i; double b;
   
   // Contribution from BC 1
-  i = 1;
+  i = 0;
   b = params->aE*T_old[i] + (params->aP0 - params->aE)*T_old[i];
   T_new[i] = b/params->aP;
   
-  for (int i = 2; i < params->n_volumes; i++) {//check
+  for (int i = 1; i < params->n_volumes-1; i++) {//check
     b = params->aW*T_old[i-1] + params->aE*T_old[i+1] + (params->aP0 - (params->aE+params->aW))*T_old[i];
     T_new[i] = b/params->aP;
   }
 
   // Contribution from BC 2
-  i = -2;
+  i = params->n_volumes-1;
   b = params->aW*T_old[i-1] + (params->aP0 - (params->aE+params->aW))*T_old[i] + params->aEb*params->T_cooled;
   T_new[i] = b/params->aP;
 
