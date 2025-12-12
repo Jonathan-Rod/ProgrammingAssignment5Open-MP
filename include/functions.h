@@ -128,20 +128,6 @@ void calculate_derived_parameters(SimulationParams* params);
  */
 double* allocate_temperature_field(int n_volumes);
 
-/**
- * @brief Asigna memoria para campo de temperaturas auxiliar (nuevo paso de
- * tiempo)
- *
- * Paso a paso:
- * 1. Verifica que n_volumes esté dentro de límites razonables
- * 2. Asigna memoria para n_volumes elementos double
- * 3. Inicializa todos los elementos a cero
- * 4. Retorna puntero al arreglo asignado
- *
- * @param n_volumes Número de volúmenes de control
- * @return Puntero al arreglo de temperaturas asignado
- */
-double* allocate_temperature_field_aux(int n_volumes);
 
 /**
  * @brief Libera memoria del campo de temperaturas

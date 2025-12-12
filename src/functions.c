@@ -2,7 +2,6 @@
 // #include "functions.h"
 #include "../include/functions.h"
 
-
 // ============================================================================
 // FUNCIONES DE INICIALIZACIÓN Y CONFIGURACIÓN
 // ============================================================================
@@ -59,11 +58,13 @@ void calculate_derived_parameters(SimulationParams *params) {
   if (params->dx <= 0) {
     fprintf(stderr, "Error: dx must be positive\n");
   }
-  params->aW = params->k/params->dx;
-  params->aE = params->k/params->dx;
+
+  // Calcular coeficientes (no necesitan ser recalculados)
+  params->aW = params->k / params->dx;
+  params->aE = params->k / params->dx;
   params->aP = params->rho_c * (params->dx / params->dt);
   params->aP0 = params->rho_c * (params->dx / params->dt);
-  params->aEb = 2*(params->k/params->dx);
+  params->aEb = 2 * (params->k / params->dx);
 }
 
 double *allocate_temperature_field(int n_volumes) {
@@ -71,19 +72,16 @@ double *allocate_temperature_field(int n_volumes) {
     fprintf(stderr, "Error: Invalid number of volumes: %d\n", n_volumes);
     return NULL;
   }
-
-  double *T = (double *)calloc(n_volumes, sizeof(double));
+  // n_volumes es solo el numero de nodos
+  // no incluye extremos entonces añadimos 2 para que sea 0 y n - 1 el ultimo
+  // extremos
+  double *T = (double *)calloc(n_volumes + 2, sizeof(double));
   if (T == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for temperature field\n");
     return NULL;
   }
 
   return T;
-}
-
-double *allocate_temperature_field_aux(int n_volumes) {
-  // Reutilizar la misma función de asignación
-  return allocate_temperature_field(n_volumes);
 }
 
 void free_temperature_field(double *T) {
@@ -195,7 +193,48 @@ double calculate_fourier_number(const SimulationParams *params) {
 // ============================================================================
 
 void solve_heat_equation_sequential(double *T, const SimulationParams *params) {
-  // TODO
+  // 1. Inicializa campo de temperaturas con condición inicial
+  int n_points = params->n_volumes + 2;
+  for (int i = 0; i < n_points; i++) {
+    T[i] = params->T_initial;
+  }
+
+  // 2. Aplica condiciones de frontera
+  apply_boundary_conditions_sequential(T, params);
+
+  // 3. Para cada paso de tiempo
+  double *T_new = allocate_temperature_field(params->n_volumes);
+  for (int i = 0; i < n_points; i++) {
+    T_new[i] = T[i];
+  }
+
+  double current_time = 0.0;
+  for (int step = 0; step < params->n_time_steps; step++) {
+    current_time += params->dt;
+
+    // 3a. Calcula nuevas temperaturas usando esquema explícito
+    calculate_explicit_step_sequential(T_new, T, params);
+
+    // 3b. Aplica condiciones de frontera
+    apply_boundary_conditions_sequential(T_new, params);
+
+    // 3c. Actualiza campo de temperaturas
+    for (int i = 0; i < n_points; i++) {
+      T[i] = T_new[i];
+    }
+    // Imprimir progreso de steps
+    printf("Time step: %d/%d\n", step + 1, params->n_time_steps);
+    printf("Current time: %.2f\n", current_time);
+
+    double max_temp, min_temp;  // Por si explota fue aqui XD
+    find_temperature_extremes(T, params->n_volumes, &max_temp, &min_temp);
+    print("Tmax: %.2f Tmin: %.2f\n", max_temp, min_temp);
+  }
+
+  // 4. Calcula métricas de convergencia
+  calculate_convergence_metrics(T, params, current_time);
+
+  free_temperature_field(T_new);
   printf("Sequential simulation completed\n");
 }
 
@@ -211,22 +250,29 @@ void time_integration_sequential(double *T, const SimulationParams *params) {
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
                                         const SimulationParams *params) {
-  int i; double b;
-  
+  int i;
+  double b;
+  // Los bordes se manejan en apply_boundary_conditions
+  // i = 0 y i = n_volumes - 1
+
   // Contribution from BC 1
-  i = 0;
-  b = params->aE*T_old[i] + (params->aP0 - params->aE)*T_old[i];
-  T_new[i] = b/params->aP;
-  
-  for (int i = 1; i < params->n_volumes-1; i++) {//check
-    b = params->aW*T_old[i-1] + params->aE*T_old[i+1] + (params->aP0 - (params->aE+params->aW))*T_old[i];
-    T_new[i] = b/params->aP;
+  i = 1;  // primer nodo
+  b = params->aE * T_old[i] + (params->aP0 - params->aE) * T_old[i];
+  T_new[i] = b / params->aP;
+
+  // Contribution from internal nodes (2 to n_volumes-3)
+  for (int i = 2; i < params->n_volumes - 2; i++) {
+    b = params->aW * T_old[i - 1] + params->aE * T_old[i + 1] +
+        (params->aP0 - (params->aE + params->aW)) * T_old[i];
+    T_new[i] = b / params->aP;
   }
 
   // Contribution from BC 2
-  i = params->n_volumes-1;
-  b = params->aW*T_old[i-1] + (params->aP0 - (params->aE+params->aW))*T_old[i] + params->aEb*params->T_cooled;
-  T_new[i] = b/params->aP;
+  i = params->n_volumes - 2;  // ultimo nodo
+  b = params->aW * T_old[i - 1] +
+      (params->aP0 - (params->aE + params->aW)) * T_old[i] +
+      params->aEb * params->T_cooled;
+  T_new[i] = b / params->aP;
 
   // Los bordes se manejan en apply_boundary_conditions
 }
@@ -234,8 +280,10 @@ void calculate_explicit_step_sequential(double *T_new, const double *T_old,
 void apply_boundary_conditions_sequential(double *T,
                                           const SimulationParams *params) {
   // Borde izquierdo: Dirichlet (T = T_cooled)
+  // i = 0 hace referencia al extremo del primer nodo
   T[0] = params->T_cooled;
   // Borde derecho: Neumann (dT/dx = 0, aislado)
+  // i = n_volumes - 1 hace referencia al extremo del ultimo nodo
   T[params->n_volumes - 1] = T[params->n_volumes - 2];
 }
 
@@ -414,8 +462,8 @@ double calculate_numerical_error(const double *T_numeric,
   int count = 0;
 
   // Verificar propiedades físicas básicas en lugar de solución analítica exacta
-  for (int i = 0; i < params->n_volumes-1; i++) {
-    double x = (params->dx/2) + i * params->dx; 
+  for (int i = 0; i < params->n_volumes - 1; i++) {
+    double x = (params->dx / 2) + i * params->dx;
 
     // Propiedades físicas esperadas:
     // 1. Temperaturas deben estar entre T_cooled y T_initial
@@ -467,7 +515,10 @@ void find_temperature_extremes(const double *T, int n_volumes, double *max_temp,
   *max_temp = T[0];
   *min_temp = T[0];
 
-  for (int i = 0; i < n_volumes+2; i++) {
+  // Incluir puntos de frontera
+  int n_points = n_volumes + 2;
+
+  for (int i = 0; i < n_points; i++) {
     if (T[i] > *max_temp) {
       *max_temp = T[i];
     }
@@ -587,14 +638,19 @@ void print_temperature_field(const double *T, int n_volumes,
   printf("Position [m] | Temperature [C]\n");
   printf("-----------------------------\n");
 
-  for (int i = 0; i < n_volumes; i++) {
-    double x = i * 0.1 / (n_volumes - 1);  // Posición normalizada
+  int n_points = n_volumes + 2;
+  for (int i = 0; i < n_points; i++) {
+    double x = i * 0.1 / (n_points - 1);  // Posición normalizada
     printf("%10.4f | %12.4f\n", x, T[i]);
 
+    if (i == 0 || i == n_points - 1) {
+      printf("  [Boundary]");
+    }
+
     // Limitar impresión para muchos volúmenes
-    if (n_volumes > 20 && i >= 10 && i < n_volumes - 10) {
+    if (n_points > 20 && i >= 10 && i < n_points - 10) {
       if (i == 10) {
-        printf("... (omitting %d points) ...\n", n_volumes - 20);
+        printf("... (omitting %d points) ...\n", n_points - 20);
       }
       continue;
     }
@@ -741,30 +797,40 @@ void test_boundary_conditions(void) {
 void test_explicit_calculation(void) {
   SimulationParams params;
   initialize_default_parameters(&params);
-  params.n_volumes = 5;
+  params.n_volumes = 5;  // nodos internos
   params.dt = 0.001;
   calculate_derived_parameters(&params);
 
+  // Nodos internos + 2 extremos
   double *T_old = allocate_temperature_field(params.n_volumes);
   double *T_new = allocate_temperature_field(params.n_volumes);
 
-  for (int i = 1; i < params.n_volumes-1; i++) {
+  int n_points = params.n_volumes + 2;
+  for (int i = 0; i < n_points; i++) {
     T_old[i] = params.T_initial;
+    T_new[i] = params.T_initial;
   }
+
+  // Aplicar condiciones de frontera
+  apply_boundary_conditions_sequential(T_old, &params);
 
   // Calcular un paso explícito
   calculate_explicit_step_sequential(T_new, T_old, &params);
 
+  // Aplicar condiciones de frontera
+  apply_boundary_conditions_sequential(T_new, &params);
+
   // Verificar que se calcularon los volúmenes internos
   int calculated = 1;
-  for (int i = 1; i < params.n_volumes - 1; i++) {
+  for (int i = 1; i < n_points - 1; i++) {
     if (T_new[i] == T_old[i]) {
       calculated = 0;
       break;
     }
   }
 
-  printf("Explicit calculation performed: %s\n", calculated ? "OK" : "FAILED");
+  printf("Explicit calculation performed: %s\n",
+         calculated ? "PASSED" : "FAILED");
 
   free_temperature_field(T_old);
   free_temperature_field(T_new);
