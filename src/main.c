@@ -19,13 +19,9 @@ void print_configuration(const SimulationParams *params) {
   printf("  Total time: %.1f s\n", params->total_time);
   printf("  Time step (dt): %.3e s\n", params->dt);
   printf("  Number of time steps: %d\n", params->n_time_steps);
-  printf("  Node Coefficients: %lf, %lf, %lf, %lf, %lf\n", params->aW, 
-        params->aE, 
-        params->aP, 
-        params->aP0,
-        params->aEb);
+  printf("Node Coefficients: %lf, %lf, %lf, %lf, %lf\n", params->aW, params->aE,
+         params->aP, params->aP0, params->aEb);
 }
-
 int main() {
   printf("=== HEAT EQUATION SOLVER - 1D EXPLICIT METHOD ===\n");
   printf("Using default parameters\n\n");
