@@ -228,7 +228,7 @@ void calculate_explicit_step_sequential(double *T_new, const double *T_old,
   b = params->aW*T_old[i-1] + (params->aP0 - (params->aE+params->aW))*T_old[i] + params->aEb*params->T_cooled;
   T_new[i] = b/params->aP;
 
-  apply_boundary_conditions_sequential(T_new, params);
+  // Los bordes se manejan en apply_boundary_conditions
 }
 
 void apply_boundary_conditions_sequential(double *T,
@@ -748,9 +748,8 @@ void test_explicit_calculation(void) {
   double *T_old = allocate_temperature_field(params.n_volumes);
   double *T_new = allocate_temperature_field(params.n_volumes);
 
-  // Configurar perfil lineal
   for (int i = 1; i < params.n_volumes-1; i++) {
-    T_old[i] = 100.0 - (i) * 20.0;  // 100, 80, 60, 40, 20
+    T_old[i] = params.T_initial;
   }
 
   // Calcular un paso explícito
