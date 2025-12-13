@@ -262,19 +262,16 @@ void solve_heat_equation_sequential(double* T,
  * @brief Simulación transitoria secuencial explícita guardando perfiles
  * específicos
  *
- * Paso a paso:
- * 1. Identifica tiempos donde guardar perfiles
- * 2. Para cada paso de tiempo:
- *    a. Avanza solución un paso con método explícito
- *    b. Si es tiempo de guardar perfil, copia T a T_profiles
- *    c. Actualiza contadores de progreso
- * 3. Guarda perfiles en estructura organizada
+ * Paso a paso para todos los perfiles:
+ * 1. Identifica tiempos donde guardar perfil
+ * 2. Resuelve la ecuación de calor para el perfil
+ * 3. Guarda perfil en estructura organizada
  *
  * @param T Arreglo de temperaturas inicial
  * @param params Parámetros de simulación
  */
 void solve_transient_sequential(double* T,
-                                const SimulationParams* params);  // TODO
+                                SimulationParams* params);  // TODO
 
 /**
  * @brief Integración temporal secuencial explícita del campo de temperaturas

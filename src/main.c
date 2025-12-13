@@ -63,5 +63,22 @@ int main() {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
   }
 
+
+// ============= solve full transient ==============
+  // Soluciona los perfiles completos y los acomoda en el array
+  double *T = allocate_temperature_field(params.n_volumes);
+  solve_transient_sequential(T, &params);
+
+  // header example: x(m) , T @ t=time_samples[0] ,  T @ t=time_samples[0] ...
+  // save_transient_profiles_csv();
+
+  // Liberar memoria
+  free_temperature_field(T);
+
+  // Solo liberar T_profiles si fue asignado
+  if (params.T_profiles != NULL) {
+    free_temperature_profiles(params.T_profiles, params.n_profiles);
+  }
+
   return 0;
 }

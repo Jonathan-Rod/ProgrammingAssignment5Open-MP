@@ -25,9 +25,9 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Inicializar arreglos auxiliares
   params->n_profiles = 5;
-  double temp = params->total_time / params->n_profiles;
-  for (int i = 0; i < MAX_TIME_PROFILES; i++) {
-    params->time_samples[i] = temp * i;
+  double profile_step = params->total_time / params->n_profiles;
+  for (int i = 0; i < params->n_profiles-1; i++) {
+    params->time_samples[i] = profile_step * i;
   }
   params->T_profiles =
       allocate_temperature_profiles(params->n_profiles, params->n_volumes);
@@ -241,8 +241,38 @@ void solve_heat_equation_sequential(double *T, const SimulationParams *params) {
   free_temperature_field(T_temp);
 }
 
-void solve_transient_sequential(double *T, const SimulationParams *params) {
-  // TODO
+void solve_transient_sequential(double *T, SimulationParams *params) {
+  int n_points = params->n_volumes + 2;
+  int i = 0; // posicion en time_samples y T_profiles
+  int n_time_steps_max = params->n_time_steps;
+
+  while (i < params->n_profiles-1) {
+    // 1. Identifica tiempo donde guardar perfil
+    double total_time_temp = params->time_samples[i];
+    // Recalcular número de pasos de tiempo para el perfil deseado
+    if (params->dt > 0) {
+      params->n_time_steps = (int)(total_time_temp / params->dt);
+      if (params->n_time_steps * params->dt < total_time_temp) {
+        params->n_time_steps++;  // Asegurar que cubre el tiempo total
+      }
+    } else {
+      params->n_time_steps = 0;
+    }
+    if(params->n_time_steps > n_time_steps_max) {
+      // pasaste el tiempo total original
+      params->n_time_steps = n_time_steps_max;
+    }
+
+    // 2. Resuelve la ecuación de calor para el perfil
+    solve_heat_equation_sequential(T, &params);
+
+    // 3. Guarda perfil en estructura organizada
+    for (int j = 0; j < n_points - 1; j++) {
+      params->T_profiles[i][j] = T[i];
+    }
+
+    i++; // seguimos con siguiente perfil
+  }
 }
 
 void time_integration_sequential(double *T, const SimulationParams *params) {
