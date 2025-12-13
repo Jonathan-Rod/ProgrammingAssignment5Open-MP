@@ -24,7 +24,7 @@
 #endif
 
 // ============================================================================
-// ESTRUCTURAS PRINCIPALES
+//  ESTRUCTURAS PRINCIPALES
 // ============================================================================
 
 /**
@@ -63,8 +63,9 @@ typedef struct {
 
   // Para análisis de perfiles transitorios
   int n_profiles;                          // Número de perfiles a guardar
+  double** T_profiles;                     // Array de Arrays
   double time_samples[MAX_TIME_PROFILES];  // Tiempos para guardar perfiles
-} SimulationParams;
+} SimulationParams;                        // DONE
 
 /**
  * @brief Estructura para almacenar métricas de performance computacional
@@ -80,7 +81,7 @@ typedef struct {
   int optimal_threads;     // Número óptimo de hilos encontrado
   double max_temperature;  // Temperatura máxima en el dominio
   double min_temperature;  // Temperatura mínima en el dominio
-} PerformanceMetrics;
+} PerformanceMetrics;      // DONE
 
 // ============================================================================
 // FUNCIONES DE INICIALIZACIÓN Y CONFIGURACIÓN
@@ -98,7 +99,7 @@ typedef struct {
  *
  * @param params Puntero a estructura de parámetros a inicializar
  */
-void initialize_default_parameters(SimulationParams* params);
+void initialize_default_parameters(SimulationParams* params);  // DONE
 
 /**
  * @brief Calcula parámetros derivados basados en los parámetros básicos
@@ -112,7 +113,7 @@ void initialize_default_parameters(SimulationParams* params);
  * @param params Puntero a estructura de parámetros (calcula dx, alpha,
  * n_time_steps)
  */
-void calculate_derived_parameters(SimulationParams* params);
+void calculate_derived_parameters(SimulationParams* params);  // DONE
 
 /**
  * @brief Asigna memoria para el campo de temperaturas
@@ -126,8 +127,17 @@ void calculate_derived_parameters(SimulationParams* params);
  * @param n_volumes Número de volúmenes de control
  * @return Puntero al arreglo de temperaturas asignado
  */
-double* allocate_temperature_field(int n_volumes);
+double* allocate_temperature_field(int n_volumes);  // DONE
 
+/**
+ * @brief
+ *
+ *
+ * @param n_profiles
+ * @param n_volumes
+ * @return double**
+ */
+double** allocate_temperature_profiles(int n_profiles, int n_volumes);  // DONE
 
 /**
  * @brief Libera memoria del campo de temperaturas
@@ -139,10 +149,19 @@ double* allocate_temperature_field(int n_volumes);
  *
  * @param T Puntero al arreglo de temperaturas a liberar
  */
-void free_temperature_field(double* T);
+void free_temperature_field(double* T);  // DONE
 
 /**
- * @brief Valida que los parámetros de simulación sean físicamente consistentes
+ * @brief
+ *
+ * @param TT
+ * @param profiles
+ */
+void free_temperature_profiles(double** TT, int profiles);
+
+/**
+ * @brief Valida que los parámetros de simulación sean físicamente
+ * consistentes
  *
  * Paso a paso:
  * 1. Verifica parámetros físicos positivos (k, rho_c, L)
@@ -154,7 +173,7 @@ void free_temperature_field(double* T);
  * @param params Puntero a estructura de parámetros a validar
  * @return 1 si parámetros son válidos, 0 en caso contrario
  */
-int validate_parameters(const SimulationParams* params);
+int validate_parameters(const SimulationParams* params);  // DONE
 
 // ============================================================================
 // CÁLCULOS DE ESTABILIDAD Y COEFICIENTES (EXPLÍCITO)
@@ -172,7 +191,7 @@ int validate_parameters(const SimulationParams* params);
  * @param params Puntero a parámetros de simulación
  * @return Límite máximo de paso de tiempo para estabilidad
  */
-double calculate_stability_limit(const SimulationParams* params);
+double calculate_stability_limit(const SimulationParams* params);  // DONE
 
 /**
  * @brief Verifica si el paso de tiempo cumple condición de estabilidad
@@ -187,7 +206,9 @@ double calculate_stability_limit(const SimulationParams* params);
  * @param params Puntero a parámetros de simulación
  * @return 1 si es estable, 0 si no cumple condición
  */
-int check_stability_condition(const SimulationParams* params);
+int check_stability_condition(
+    const SimulationParams*
+        params);  // DONE depends on calculate_fourier_number
 
 /**
  * @brief Calcula la difusividad térmica basada en k y rho_c
@@ -200,7 +221,7 @@ int check_stability_condition(const SimulationParams* params);
  *
  * @param params Puntero a estructura donde se almacenará alpha
  */
-void calculate_thermal_diffusivity(SimulationParams* params);
+void calculate_thermal_diffusivity(SimulationParams* params);  // DONE
 
 /**
  * @brief Calcula el número de Fourier para el esquema explícito
@@ -213,7 +234,7 @@ void calculate_thermal_diffusivity(SimulationParams* params);
  * @param params Puntero a parámetros de simulación
  * @return Número de Fourier calculado
  */
-double calculate_fourier_number(const SimulationParams* params);
+double calculate_fourier_number(const SimulationParams* params);  // DONE
 
 // ============================================================================
 // SIMULACIÓN SECUENCIAL (EXPLÍCITA)
@@ -234,7 +255,8 @@ double calculate_fourier_number(const SimulationParams* params);
  * @param T Arreglo de temperaturas (entrada/salida)
  * @param params Parámetros de simulación
  */
-void solve_heat_equation_sequential(double* T, const SimulationParams* params);
+void solve_heat_equation_sequential(double* T,
+                                    const SimulationParams* params);  // DONE
 
 /**
  * @brief Simulación transitoria secuencial explícita guardando perfiles
@@ -250,11 +272,9 @@ void solve_heat_equation_sequential(double* T, const SimulationParams* params);
  *
  * @param T Arreglo de temperaturas inicial
  * @param params Parámetros de simulación
- * @param T_profiles Arreglo para almacenar perfiles de temperatura
- * @param profile_indices Índices de tiempos donde guardar perfiles
  */
-void solve_transient_sequential(double* T, const SimulationParams* params,
-                                double* T_profiles, int profile_indices[]);
+void solve_transient_sequential(double* T,
+                                const SimulationParams* params);  // TODO
 
 /**
  * @brief Integración temporal secuencial explícita del campo de temperaturas
@@ -270,7 +290,8 @@ void solve_transient_sequential(double* T, const SimulationParams* params,
  * @param T Arreglo de temperaturas (se actualiza)
  * @param params Parámetros de simulación
  */
-void time_integration_sequential(double* T, const SimulationParams* params);
+void time_integration_sequential(double* T,
+                                 const SimulationParams* params);  // TODO
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito
@@ -286,8 +307,9 @@ void time_integration_sequential(double* T, const SimulationParams* params);
  * @param T_old Temperaturas del paso anterior
  * @param params Parámetros de simulación
  */
-void calculate_explicit_step_sequential(double* T_new, const double* T_old,
-                                        const SimulationParams* params);
+void calculate_explicit_step_sequential(
+    double* T_new, const double* T_old,
+    const SimulationParams* params);  // DONE
 
 /**
  * @brief Aplica condiciones de frontera en implementación secuencial explícita
@@ -300,8 +322,9 @@ void calculate_explicit_step_sequential(double* T_new, const double* T_old,
  * @param T Campo de temperaturas (modificado)
  * @param params Parámetros de simulación
  */
-void apply_boundary_conditions_sequential(double* T,
-                                          const SimulationParams* params);
+void apply_boundary_conditions_sequential(
+    double* T,
+    const SimulationParams* params);  // DONE
 
 // ============================================================================
 // SIMULACIÓN PARALELA (OPENMP - EXPLÍCITA)
@@ -321,25 +344,19 @@ void apply_boundary_conditions_sequential(double* T,
  * @param T Arreglo de temperaturas (entrada/salida)
  * @param params Parámetros de simulación
  */
-void solve_heat_equation_parallel(double* T, const SimulationParams* params);
+void solve_heat_equation_parallel(double* T,
+                                  const SimulationParams* params);  // TODO
 
 /**
  * @brief Simulación transitoria paralela explícita guardando perfiles
  * específicos
  *
- * Paso a paso:
- * 1. Paraleliza loop temporal principal
- * 2. Usa secciones críticas para guardar perfiles
- * 3. Balancea carga entre hilos
- * 4. Minimiza overhead de sincronización
  *
  * @param T Arreglo de temperaturas inicial
  * @param params Parámetros de simulación
- * @param T_profiles Arreglo para almacenar perfiles de temperatura
- * @param profile_indices Índices de tiempos donde guardar perfiles
  */
-void solve_transient_parallel(double* T, const SimulationParams* params,
-                              double* T_profiles, int profile_indices[]);
+void solve_transient_parallel(double* T,
+                              const SimulationParams* params);  // TODO
 
 /**
  * @brief Integración temporal paralela explícita del campo de temperaturas
@@ -353,7 +370,8 @@ void solve_transient_parallel(double* T, const SimulationParams* params,
  * @param T Arreglo de temperaturas (se actualiza)
  * @param params Parámetros de simulación
  */
-void time_integration_parallel(double* T, const SimulationParams* params);
+void time_integration_parallel(double* T,
+                               const SimulationParams* params);  // TODO
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito en paralelo
@@ -369,7 +387,7 @@ void time_integration_parallel(double* T, const SimulationParams* params);
  * @param params Parámetros de simulación
  */
 void calculate_explicit_step_parallel(double* T_new, const double* T_old,
-                                      const SimulationParams* params);
+                                      const SimulationParams* params);  // TODO
 
 /**
  * @brief Aplica condiciones de frontera en implementación paralela explícita
@@ -383,8 +401,9 @@ void calculate_explicit_step_parallel(double* T_new, const double* T_old,
  * @param T Campo de temperaturas (modificado)
  * @param params Parámetros de simulación
  */
-void apply_boundary_conditions_parallel(double* T,
-                                        const SimulationParams* params);
+void apply_boundary_conditions_parallel(
+    double* T,
+    const SimulationParams* params);  // TODO
 
 // ============================================================================
 // ANÁLISIS DE PERFORMANCE Y BENCHMARKING
@@ -404,48 +423,20 @@ void apply_boundary_conditions_parallel(double* T,
  * @return Estructura con métricas de performance comparativas
  */
 PerformanceMetrics compare_sequential_vs_parallel(
-    const SimulationParams* params);
-
-/**
- * @brief Realiza análisis de escalabilidad variando número de hilos
- *
- * Paso a paso:
- * 1. Barre número de hilos desde 1 hasta máximo disponible
- * 2. Para cada configuración, mide tiempo ejecución
- * 3. Calcula speedup y eficiencia
- * 4. Identifica punto de saturación de escalabilidad
- * 5. Genera curvas de escalabilidad
- *
- * @param params Parámetros de simulación base
- */
-void benchmark_scalability_analysis(const SimulationParams* params);
-
-/**
- * @brief Encuentra configuración óptima de hilos para máximo speedup
- *
- * Paso a paso:
- * 1. Prueba diferentes números de hilos
- * 2. Mide tiempo de ejecución para cada caso
- * 3. Calcula speedup relativo
- * 4. Identifica configuración con mejor speedup
- * 5. Considera eficiencia y overhead
- *
- * @param params Parámetros de simulación
- */
-void find_optimal_thread_configuration(const SimulationParams* params);
+    const SimulationParams* params);  // TODO
 
 /**
  * @brief Barrido de parámetros para análisis de sensibilidad de performance
  *
  * Paso a paso:
- * 1. Varía parámetros clave (n_volumes, n_time_steps)
+ * 1. Varía parámetros clave (MAX_TIME_PROFILES)
  * 2. Para cada combinación, mide performance
  * 3. Identifica cuellos de botella
  * 4. Genera superficies de respuesta
  *
  * @param base_params Parámetros base para la simulación
  */
-void performance_sweep_parameters(const SimulationParams* base_params);
+void performance_sweep_parameters(const SimulationParams* base_params);  // TODO
 
 /**
  * @brief Calcula ratio de speedup entre versiones
@@ -460,7 +451,7 @@ void performance_sweep_parameters(const SimulationParams* base_params);
  * @param par_time Tiempo de ejecución paralelo
  * @return Ratio de speedup (seq_time/par_time)
  */
-double calculate_speedup_ratio(double seq_time, double par_time);
+double calculate_speedup_ratio(double seq_time, double par_time);  // DONE
 
 /**
  * @brief Calcula eficiencia paralela
@@ -475,7 +466,7 @@ double calculate_speedup_ratio(double seq_time, double par_time);
  * @param n_threads Número de hilos utilizados
  * @return Eficiencia paralela (speedup/n_threads)
  */
-double calculate_parallel_efficiency(double speedup, int n_threads);
+double calculate_parallel_efficiency(double speedup, int n_threads);  // DONE
 
 /**
  * @brief Mide tiempo de ejecución de una función de solver
@@ -492,44 +483,12 @@ double calculate_parallel_efficiency(double speedup, int n_threads);
  * @return Tiempo de ejecución en segundos
  */
 double measure_execution_time(void (*solver)(double*, const SimulationParams*),
-                              double* T, const SimulationParams* params);
+                              double* T,
+                              const SimulationParams* params);  // DONE
 
 // ============================================================================
 // VALIDACIÓN Y VERIFICACIÓN (EXPLÍCITA)
 // ============================================================================
-
-/**
- * @brief Calcula la energía térmica total en el dominio
- *
- * Paso a paso:
- * 1. Para cada volumen, calcula energía = rho_c * T * dx
- * 2. Suma todas las energías
- * 3. Considera condiciones de frontera
- * 4. Retorna energía total calculada
- *
- * @param T Campo de temperaturas actual
- * @param params Parámetros de simulación
- * @return Energía térmica total en el dominio [J]
- */
-double calculate_total_energy(const double* T, const SimulationParams* params);
-
-/**
- * @brief Verifica conservación de energía (debe decrecer por condiciones
- * frontera)
- *
- * Paso a paso:
- * 1. Calcula energía inicial
- * 2. Calcula energía final
- * 3. Verifica que energía decrece (superficie enfriada)
- * 4. Calcula porcentaje de conservación
- *
- * @param T_initial Temperaturas iniciales
- * @param T_final Temperaturas finales
- * @param params Parámetros de simulación
- * @return 1 si conservación es físicamente consistente, 0 en caso contrario
- */
-int verify_energy_conservation(const double* T_initial, const double* T_final,
-                               const SimulationParams* params);
 
 /**
  * @brief Verifica equivalencia entre soluciones secuencial y paralela
@@ -547,7 +506,7 @@ int verify_energy_conservation(const double* T_initial, const double* T_final,
  * @return 1 si son equivalentes, 0 en caso contrario
  */
 int verify_solution_equivalence(const double* T_seq, const double* T_par,
-                                int n_volumes, double tolerance);
+                                int n_volumes, double tolerance);  // DONE
 
 /**
  * @brief Calcula error numérico comparando con solución analítica (si
@@ -566,7 +525,7 @@ int verify_solution_equivalence(const double* T_seq, const double* T_par,
  */
 double calculate_numerical_error(const double* T_numeric,
                                  const SimulationParams* params,
-                                 double current_time);
+                                 double current_time);  // !!!
 
 /**
  * @brief Valida historia de convergencia de la simulación explícita
@@ -579,7 +538,7 @@ double calculate_numerical_error(const double* T_numeric,
  *
  * @param params Parámetros de simulación
  */
-void validate_convergence_history(const SimulationParams* params);
+void validate_convergence_history(const SimulationParams* params);  // TODO
 
 /**
  * @brief Encuentra temperaturas máxima y mínima en el dominio
@@ -596,7 +555,7 @@ void validate_convergence_history(const SimulationParams* params);
  * @param min_temp Temperatura mínima (salida)
  */
 void find_temperature_extremes(const double* T, int n_volumes, double* max_temp,
-                               double* min_temp);
+                               double* min_temp);  // TODO
 
 // ============================================================================
 // GESTIÓN DE DATOS Y ARCHIVOS
@@ -619,7 +578,8 @@ void find_temperature_extremes(const double* T, int n_volumes, double* max_temp,
  */
 void save_temperature_profile_csv(const double* T,
                                   const SimulationParams* params,
-                                  double current_time, const char* filename);
+                                  double current_time,
+                                  const char* filename);  // TODO
 
 /**
  * @brief Guarda métricas de performance en archivo CSV
@@ -635,7 +595,7 @@ void save_temperature_profile_csv(const double* T,
  * @param filename Nombre del archivo CSV
  */
 void save_performance_metrics_csv(const PerformanceMetrics* metrics,
-                                  const char* filename);
+                                  const char* filename);  // TODO
 
 /**
  * @brief Guarda múltiples perfiles transitorios en CSV
@@ -652,7 +612,7 @@ void save_performance_metrics_csv(const PerformanceMetrics* metrics,
  */
 void save_transient_profiles_csv(const double* T_profiles,
                                  const SimulationParams* params,
-                                 const char* filename);
+                                 const char* filename);  // TODO
 
 /**
  * @brief Guarda datos de escalabilidad en CSV
@@ -668,7 +628,7 @@ void save_transient_profiles_csv(const double* T_profiles,
  * @param filename Nombre del archivo CSV
  */
 void save_scalability_data_csv(const PerformanceMetrics* metrics_array,
-                               int num_configs, const char* filename);
+                               int num_configs, const char* filename);  // TODO
 
 /**
  * @brief Abre archivo de forma segura con verificación de errores
@@ -683,7 +643,7 @@ void save_scalability_data_csv(const PerformanceMetrics* metrics_array,
  * @param mode Modo de apertura
  * @return Puntero FILE* o NULL en caso de error
  */
-FILE* safe_file_open(const char* filename, const char* mode);
+FILE* safe_file_open(const char* filename, const char* mode);  // TODO
 
 /**
  * @brief Cierra archivo de forma segura
@@ -696,7 +656,7 @@ FILE* safe_file_open(const char* filename, const char* mode);
  *
  * @param file Puntero al archivo a cerrar
  */
-void safe_file_close(FILE* file);
+void safe_file_close(FILE* file);  // TODO
 
 /**
  * @brief Escribe headers en archivo CSV
@@ -711,7 +671,8 @@ void safe_file_close(FILE* file);
  * @param headers Arreglo de strings con headers
  * @param n_headers Número de headers
  */
-void write_csv_headers(FILE* file, const char* headers[], int n_headers);
+void write_csv_headers(FILE* file, const char* headers[],
+                       int n_headers);  // TODO
 
 // ============================================================================
 // CONFIGURACIÓN Y CONTROL OPENMP
@@ -836,12 +797,8 @@ void print_performance_summary(const PerformanceMetrics* metrics);
 
 /**
  * @brief Ejecuta tests de corrección de la implementación explícita
- *
- * Paso a paso:
- * 1. Prueba casos con solución analítica conocida
- * 2. Verifica conservación de energía
- * 3. Valida condiciones de frontera
- * 4. Reporta resultados de tests
+ * 1. test boundary conditions
+ * 2. calculate numerical error
  */
 void run_correctness_test(void);
 
@@ -855,17 +812,6 @@ void run_correctness_test(void);
  * 4. Chequea consistencia con solución interna
  */
 void test_boundary_conditions(void);
-
-/**
- * @brief Valida cálculo de paso explícito
- *
- * Paso a paso:
- * 1. Compara con cálculo manual para caso simple
- * 2. Verifica estabilidad numérica
- * 3. Chequea conservación de propiedades físicas
- * 4. Valida para diferentes números de Fourier
- */
-void test_explicit_calculation(void);
 
 /**
  * @brief Verifica corrección de implementación paralela explícita

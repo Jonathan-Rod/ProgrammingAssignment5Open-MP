@@ -1,98 +1,67 @@
 // %%writefile main.c
-// #include "functions.h"
 #include "../include/functions.h"
 
-void print_configuration(const SimulationParams *params) {
-  printf("=== SIMULATION PARAMETERS ===\n");
-  printf("Physical parameters:\n");
-  printf("  Thermal conductivity (k): %.1f W/mK\n", params->k);
-  printf("  rho*c: %.1e J/m³K\n", params->rho_c);
-  printf("  Thermal diffusivity (alpha): %.2e m²/s\n", params->alpha);
-  printf("\nGeometry:\n");
-  printf("  Length (L): %.2e m\n", params->L);
-  printf("  Number of volumes: %d\n", params->n_volumes);
-  printf("  Spatial step (dx): %.2e m\n", params->dx);
-  printf("\nTemperatures:\n");
-  printf("  Initial temperature: %.1f °C\n", params->T_initial);
-  printf("  Cooled surface temperature: %.1f °C\n", params->T_cooled);
-  printf("\nTime parameters:\n");
-  printf("  Total time: %.1f s\n", params->total_time);
-  printf("  Time step (dt): %.3e s\n", params->dt);
-  printf("  Number of time steps: %d\n", params->n_time_steps);
-  printf("Node Coefficients: %.2f, %.2f, %.2f, %.2f, %.2f\n", params->aW,
-         params->aE, params->aP, params->aP0, params->aEb);
-}
-int main() {
-  printf("=== HEAT EQUATION SOLVER - 1D EXPLICIT METHOD ===\n");
-  printf("Using default parameters\n\n");
+void print_parameters(SimulationParams *params) {
+  printf("\n---Parameters---\n");
 
-  // Inicializar parámetros con valores por defecto
+  printf("\nPhysical Parameters:\n");
+  printf("    k: %.3f W/mK\n", params->k);
+  printf("rho_c: %.3f J/m^3K\n", params->rho_c);
+  printf("alpha: %.3f m^2/s\n", params->alpha);
+
+  printf("\nGeometry Parameters:\n");
+  printf("        L: %.3f m\n", params->L);
+  printf("       dx: %.3f m\n", params->dx);
+  printf("n_volumes: %d\n", params->n_volumes);
+
+  printf("\nThermal Conditions:\n");
+  printf("T_initial: %.1f C\n", params->T_initial);
+  printf(" T_cooled: %.1f C\n", params->T_cooled);
+
+  printf("\nTemporal Parameters:\n");
+  printf("          dt: %.3f s\n", params->dt);
+  printf("  total_time: %.1f s\n", params->total_time);
+  printf("n_time_steps: %d\n", params->n_time_steps);
+
+  printf("\nNumerical Coefficients:\n");
+  printf(" aW: %.3f\n", params->aW);
+  printf(" aE: %.3f\n", params->aE);
+  printf(" aP: %.3f\n", params->aP);
+  printf("aP0: %.3f\n", params->aP0);
+  printf("aEb: %.3f\n", params->aEb);
+
+  printf("\nProfile Parameters:\n");
+  printf("   n_profiles: %d\n", params->n_profiles);
+  printf("profile_times:\n");
+  for (int i = 0; i < params->n_profiles; i++) {
+    printf("            %d: %.1f s\n", i + 1, params->time_samples[i]);
+  }
+  printf("---End Parameters---\n\n");
+}
+
+int main() {
   SimulationParams params;
   initialize_default_parameters(&params);
+  print_parameters(&params);
 
-  // Imprimir configuración
-  print_configuration(&params);
-
-  // Validar parámetros
-  if (!validate_parameters(&params)) {
-    fprintf(stderr, "Error: Invalid parameters\n");
-    return 1;
-  }
-
-  // Ejecutar tests de corrección
-  printf("\n");
-  run_correctness_test();
-
-  // Comparar versiones secuencial y paralela
-  printf("\n");
-  PerformanceMetrics metrics = compare_sequential_vs_parallel(&params);
-
-  // Análisis de escalabilidad
-  printf("\n");
-  benchmark_scalability_analysis(&params);
-
-  // Ejemplo de simulación transitoria
-  printf("\n=== TRANSIENT SIMULATION EXAMPLE ===\n");
   double *T = allocate_temperature_field(params.n_volumes);
-  double *T_profiles =
-      malloc(params.n_volumes * 5 * sizeof(double));  // 5 perfiles
 
-  if (T == NULL || T_profiles == NULL) {
-    fprintf(stderr, "Error: Could not allocate memory\n");
-    return 1;
-  }
+  // 1. Solucionar ecuación de calor (sin perfiles)
+  solve_heat_equation_sequential(T, &params);
+  print_temperature_field(T, params.n_volumes,
+                          "Sequential Solve Heat Equation");
 
-  // Definir tiempos para guardar perfiles (20%, 40%, 60%, 80%, 100%)
-  int profile_indices[5];
-  for (int i = 0; i < 5; i++) {
-    profile_indices[i] = (i + 1) * params.n_time_steps / 5;
-  }
-
-  // Ejecutar simulación transitoria secuencial
-  solve_transient_sequential(T, &params, T_profiles, profile_indices);
-
-  // Guardar último perfil
-  printf("\nSaving results...\n");
+  // 2. Guardar temperatura final en CSV
   save_temperature_profile_csv(T, &params, params.total_time,
-                               "final_profile.csv");
-
-  // Guardar métricas
-  save_performance_metrics_csv(&metrics, "performance_metrics.csv");
-
-  // Calcular y mostrar temperaturas finales
-  double max_temp, min_temp;
-  find_temperature_extremes(T, params.n_volumes, &max_temp, &min_temp);
-  printf("\nFinal temperature distribution:\n");
-  printf("  Maximum temperature: %.2f °C\n", max_temp);
-  printf("  Minimum temperature: %.2f °C\n", min_temp);
-  printf("  Temperature drop: %.2f °C\n", params.T_initial - min_temp);
-
-  // Calcular energía total
-  double final_energy = calculate_total_energy(T, &params);
-  printf("  Final thermal energy: %.6e J\n", final_energy);
+                               "../data/Sequential_Solve_Heat_Equation.csv");
 
   // Liberar memoria
   free_temperature_field(T);
-  free(T_profiles);
+
+  // Solo liberar T_profiles si fue asignado
+  if (params.T_profiles != NULL) {
+    free_temperature_profiles(params.T_profiles, params.n_profiles);
+  }
+
   return 0;
 }

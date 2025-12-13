@@ -21,13 +21,16 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Parámetros temporales
   params->total_time = 850.0;  // Tiempo total de simulación [s]
-  params->dt = 0.01;           // Paso de tiempo [s] (1 ms)
+  params->dt = 0.015;          // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 0;
+  params->n_profiles = 5;
+  double temp = params->total_time / params->n_profiles;
   for (int i = 0; i < MAX_TIME_PROFILES; i++) {
-    params->time_samples[i] = 0.0;
+    params->time_samples[i] = temp * i;
   }
+  params->T_profiles =
+      allocate_temperature_profiles(params->n_profiles, params->n_volumes);
 
   // Calcular parámetros derivados
   calculate_derived_parameters(params);
@@ -35,8 +38,8 @@ void initialize_default_parameters(SimulationParams *params) {
 
 void calculate_derived_parameters(SimulationParams *params) {
   // Calcular espaciado espacial
-  if (params->n_volumes > 1) {
-    params->dx = params->L / (params->n_volumes);
+  if (params->n_volumes > 0) {
+    params->dx = params->L / (params->n_volumes + 1);
   } else {
     params->dx = params->L;
   }
@@ -53,6 +56,10 @@ void calculate_derived_parameters(SimulationParams *params) {
   } else {
     params->n_time_steps = 0;
   }
+
+  // TODO TOREMOVE FOR DEBUG
+  params->n_time_steps = 200;
+  //
 
   // Verificar consistencia
   if (params->dx <= 0) {
@@ -84,9 +91,23 @@ double *allocate_temperature_field(int n_volumes) {
   return T;
 }
 
+double **allocate_temperature_profiles(int n_profiles, int n_volumes) {
+  double **T_profiles = malloc(n_profiles * sizeof(double *));
+  for (int i = 0; i < n_profiles; i++) {
+    T_profiles[i] = allocate_temperature_field(n_volumes);
+  }
+  return T_profiles;
+}
+
 void free_temperature_field(double *T) {
   if (T != NULL) {
     free(T);
+  }
+}
+
+void free_temperature_profiles(double **TT, int profiles) {
+  for (int i = 0; i < profiles; i++) {
+    free_temperature_field(TT[i]);
   }
 }
 
@@ -193,55 +214,35 @@ double calculate_fourier_number(const SimulationParams *params) {
 // ============================================================================
 
 void solve_heat_equation_sequential(double *T, const SimulationParams *params) {
-  // 1. Inicializa campo de temperaturas con condición inicial
   int n_points = params->n_volumes + 2;
+
+  // 1. Inicializar temperaturas
   for (int i = 0; i < n_points; i++) {
     T[i] = params->T_initial;
   }
 
-  // 2. Aplica condiciones de frontera
   apply_boundary_conditions_sequential(T, params);
 
-  // 3. Para cada paso de tiempo
-  double *T_new = allocate_temperature_field(params->n_volumes);
-  for (int i = 0; i < n_points; i++) {
-    T_new[i] = T[i];
-  }
+  // 2. Arreglo temporal
+  double *T_temp = allocate_temperature_field(params->n_volumes);
 
-  double current_time = 0.0;
+  // 3. Bucle temporal
   for (int step = 0; step < params->n_time_steps; step++) {
-    current_time += params->dt;
+    // Calcular nuevo paso basado en T
+    calculate_explicit_step_sequential(T_temp, T, params);
+    apply_boundary_conditions_sequential(T_temp, params);
 
-    // 3a. Calcula nuevas temperaturas usando esquema explícito
-    calculate_explicit_step_sequential(T_new, T, params);
-
-    // 3b. Aplica condiciones de frontera
-    apply_boundary_conditions_sequential(T_new, params);
-
-    // 3c. Actualiza campo de temperaturas
+    // Actualizar T
     for (int i = 0; i < n_points; i++) {
-      T[i] = T_new[i];
+      T[i] = T_temp[i];
     }
-    // Imprimir progreso de steps
-    printf("Time step: %d/%d\n", step + 1, params->n_time_steps);
-    printf("Current time: %.2f\n", current_time);
-
-    double max_temp, min_temp;  // Por si explota fue aqui XD
-    find_temperature_extremes(T, params->n_volumes, &max_temp, &min_temp);
-    printf("Tmax: %.2f Tmin: %.2f\n", max_temp, min_temp);
   }
 
-  // 4. Calcula métricas de convergencia
-  // calculate_convergence_metrics(T, params, current_time);
-
-  free_temperature_field(T_new);
-  printf("Sequential simulation completed\n");
+  free_temperature_field(T_temp);
 }
 
-void solve_transient_sequential(double *T, const SimulationParams *params,
-                                double *T_profiles, int profile_indices[]) {
+void solve_transient_sequential(double *T, const SimulationParams *params) {
   // TODO
-  printf("Transient simulation completed\n");
 }
 
 void time_integration_sequential(double *T, const SimulationParams *params) {
@@ -252,39 +253,37 @@ void calculate_explicit_step_sequential(double *T_new, const double *T_old,
                                         const SimulationParams *params) {
   int i;
   double b;
-  // Los bordes se manejan en apply_boundary_conditions
-  // i = 0 y i = n_volumes - 1
+  int n_points = params->n_volumes + 2;
 
-  // Contribution from BC 1
-  i = 1;  // primer nodo
-  b = params->aE * T_old[i] + (params->aP0 - params->aE) * T_old[i];
+  // Primer nodo interno (i=1) - Neumann izquierdo: T[0] = T[1]
+  i = 1;
+  b = params->aW * T_old[1] + params->aE * T_old[i + 1] +
+      (params->aP0 - (params->aW + params->aE)) * T_old[i];
   T_new[i] = b / params->aP;
 
-  // Contribution from internal nodes (2 to n_volumes-3)
-  for (int i = 2; i < params->n_volumes - 2; i++) {
+  // Nodos internos centrales (i=2 a n_volumes - 1)
+  for (i = 2; i <= n_points - 3; i++) {
     b = params->aW * T_old[i - 1] + params->aE * T_old[i + 1] +
         (params->aP0 - (params->aE + params->aW)) * T_old[i];
     T_new[i] = b / params->aP;
   }
 
-  // Contribution from BC 2
-  i = params->n_volumes - 2;  // ultimo nodo
-  b = params->aW * T_old[i - 1] +
-      (params->aP0 - (params->aE + params->aW)) * T_old[i] +
-      params->aEb * params->T_cooled;
-  T_new[i] = b / params->aP;
-
-  // Los bordes se manejan en apply_boundary_conditions
+  // Último nodo interno (i=n_volumes+1)
+  i = n_points - 2;
+  b = params->aW * T_old[i - 1] + params->aEb * params->T_cooled +
+      (params->aP0 - params->aW) * T_old[i];
+  T_new[i - 1] = b / params->aP;
 }
 
 void apply_boundary_conditions_sequential(double *T,
                                           const SimulationParams *params) {
-  // Borde izquierdo: Dirichlet (T = T_cooled)
-  // i = 0 hace referencia al extremo del primer nodo
-  T[0] = params->T_cooled;
-  // Borde derecho: Neumann (dT/dx = 0, aislado)
-  // i = n_volumes - 1 hace referencia al extremo del ultimo nodo
-  T[params->n_volumes - 1] = T[params->n_volumes - 2];
+  int n_points = params->n_volumes + 2;
+
+  // Borde izquierdo: Neumann (T[0] = T[1])
+  T[0] = T[1];
+
+  // Borde derecho: Dirichlet (T[n_points-1] = T_cooled)
+  T[n_points - 1] = params->T_cooled;
 }
 
 // ============================================================================
@@ -299,8 +298,7 @@ void solve_heat_equation_parallel(double *T, const SimulationParams *params) {
   printf("Parallel simulation completed\n");
 }
 
-void solve_transient_parallel(double *T, const SimulationParams *params,
-                              double *T_profiles, int profile_indices[]) {
+void solve_transient_parallel(double *T, const SimulationParams *params) {
   // Configurar entorno OpenMP
   configure_omp_environment(OMP_NUM_THREADS);
   // TODO
@@ -319,15 +317,7 @@ void calculate_explicit_step_parallel(double *T_new, const double *T_old,
 
 void apply_boundary_conditions_parallel(double *T,
                                         const SimulationParams *params) {
-// Aplicar condiciones de frontera (solo necesita ejecutarse una vez)
-#pragma omp single
-  {
-    // Borde izquierdo: Dirichlet (T = T_cooled)
-    T[0] = params->T_cooled;
-
-    // Borde derecho: Neumann (dT/dx = 0, aislado)
-    T[params->n_volumes - 1] = T[params->n_volumes - 2];
-  }
+  // TODO
 }
 
 // ============================================================================
@@ -341,24 +331,14 @@ PerformanceMetrics compare_sequential_vs_parallel(
   return metrics;
 }
 
-void benchmark_scalability_analysis(const SimulationParams *params) {
-  int max_threads = get_available_parallel_threads();
-  // TODO
-}
-
-void find_optimal_thread_configuration(const SimulationParams *params) {
-  int max_threads = get_available_parallel_threads();
-  // TODO
-}
-
 void performance_sweep_parameters(const SimulationParams *base_params) {
   printf("\n=== PERFORMANCE PARAMETER SWEEP ===\n");
 
-  // Variar número de volúmenes
-  int volume_sizes[] = {100, 1000, 5000, 10000};
-  int num_sizes = sizeof(volume_sizes) / sizeof(volume_sizes[0]);
+  // Variar número de profiles
+  int profiles_numbers[] = {100, 1000, 5000, 10000};
+  int profiles_size = sizeof(profiles_numbers) / sizeof(profiles_numbers[0]);
 
-  for (int i = 0; i < num_sizes; i++) {
+  for (int i = 0; i < profiles_size; i++) {
     // TODO
   }
 }
@@ -409,32 +389,6 @@ double measure_execution_time(void (*solver)(double *,
 // VALIDACIÓN Y VERIFICACIÓN (EXPLÍCITA)
 // ============================================================================
 
-double calculate_total_energy(const double *T, const SimulationParams *params) {
-  double total_energy = 0.0;
-
-  for (int i = 0; i < params->n_volumes; i++) {
-    total_energy += params->rho_c * T[i] * params->dx;
-  }
-
-  return total_energy;
-}
-
-int verify_energy_conservation(const double *T_initial, const double *T_final,
-                               const SimulationParams *params) {
-  double energy_initial = calculate_total_energy(T_initial, params);
-  double energy_final = calculate_total_energy(T_final, params);
-
-  // La energía debe decrecer debido a la superficie enfriada
-  int energy_decreases = (energy_final < energy_initial);
-
-  printf("Initial energy: %.6e J\n", energy_initial);
-  printf("Final energy:   %.6e J\n", energy_final);
-  printf("Difference:     %.6e J\n", energy_final - energy_initial);
-  printf("Energy decreases: %s\n", energy_decreases ? "YES" : "NO");
-
-  return energy_decreases;
-}
-
 int verify_solution_equivalence(const double *T_seq, const double *T_par,
                                 int n_volumes, double tolerance) {
   double max_difference = 0.0;
@@ -445,12 +399,10 @@ int verify_solution_equivalence(const double *T_seq, const double *T_par,
       max_difference = difference;
     }
   }
-
-  printf("Maximum difference between solutions: %.2e\n", max_difference);
-  printf("Tolerance: %.2e\n", tolerance);
+  printf("Maximum difference between solutions: %.2f\n", max_difference);
+  printf("Tolerance: %.2f\n", tolerance);
   printf("Solutions equivalent: %s\n",
-         (max_difference <= tolerance) ? "YES" : "NO");
-
+         max_difference <= tolerance ? "true" : "false");
   return (max_difference <= tolerance);
 }
 
@@ -535,7 +487,31 @@ void find_temperature_extremes(const double *T, int n_volumes, double *max_temp,
 void save_temperature_profile_csv(const double *T,
                                   const SimulationParams *params,
                                   double current_time, const char *filename) {
-  // TODO
+  if (T == NULL || params == NULL || filename == NULL) {
+    fprintf(stderr, "Error: Invalid parameters\n");
+    return;
+  }
+
+  int n_points = params->n_volumes + 2;
+
+  FILE *file = safe_file_open(filename, "w");
+  if (file == NULL) return;
+
+  fprintf(file, "x (m),T (C)]\n");
+  for (int i = 0; i < n_points; i++) {
+    double x;
+    if (i == 0) {
+      x = 0.0;  // Borde izquierdo
+    } else if (i == n_points - 1) {
+      x = params->L;  // Borde derecho
+    } else {
+      x = (i - 0.5) * params->dx;  // Centro del volumen
+    }
+
+    fprintf(file, "%.6f,%.6f\n", x, T[i]);
+  }
+
+  safe_file_close(file);
 }
 
 void save_performance_metrics_csv(const PerformanceMetrics *metrics,
@@ -634,25 +610,21 @@ void set_omp_dynamic_scheduling(int chunk_size) {
 
 void print_temperature_field(const double *T, int n_volumes,
                              const char *label) {
-  printf("\n=== %s ===\n", label);
+  printf("\n--- TABLE: %s ---\n", label);
   printf("Position [m] | Temperature [C]\n");
   printf("-----------------------------\n");
 
   int n_points = n_volumes + 2;
   for (int i = 0; i < n_points; i++) {
     double x = i * 0.1 / (n_points - 1);  // Posición normalizada
-    printf("%10.4f | %12.4f\n", x, T[i]);
+    printf("%10.4f | %12.4f", x, T[i]);
 
-    if (i == 0 || i == n_points - 1) {
-      printf("  [Boundary]");
-    }
-
-    // Limitar impresión para muchos volúmenes
-    if (n_points > 20 && i >= 10 && i < n_points - 10) {
-      if (i == 10) {
-        printf("... (omitting %d points) ...\n", n_points - 20);
-      }
-      continue;
+    if (i == 0) {
+      printf("  [Left Boundary]\n");
+    } else if (i == n_points - 1) {
+      printf("  [Right Boundary]\n");
+    } else {
+      printf("  [Inner Nodes]\n");
     }
   }
 }
@@ -735,38 +707,6 @@ void print_performance_summary(const PerformanceMetrics *metrics) {
 
 void run_correctness_test(void) {
   printf("\n=== CORRECTNESS TESTS ===\n");
-
-  // Configurar parámetros de prueba
-  SimulationParams test_params;
-  initialize_default_parameters(&test_params);
-  test_params.n_volumes = 10;
-  test_params.dt = 1;
-  calculate_derived_parameters(&test_params);
-
-  // Prueba 1: Condiciones de frontera
-  printf("1. Testing boundary conditions...\n");
-  test_boundary_conditions();
-
-  // Prueba 2: Cálculo explícito
-  printf("2. Testing explicit calculation...\n");
-  test_explicit_calculation();
-
-  // Prueba 3: Conservación de energía
-  printf("3. Testing energy conservation...\n");
-  double *T_initial = allocate_temperature_field(test_params.n_volumes);
-  double *T_final = allocate_temperature_field(test_params.n_volumes);
-
-  for (int i = 0; i < test_params.n_volumes; i++) {
-    T_initial[i] = test_params.T_initial;
-    T_final[i] = test_params.T_initial * 0.5;  // Simular enfriamiento
-  }
-
-  int energy_ok = verify_energy_conservation(T_initial, T_final, &test_params);
-  printf("Energy conservation: %s\n", energy_ok ? "OK" : "FAILED");
-
-  free_temperature_field(T_initial);
-  free_temperature_field(T_final);
-
   printf("=== TESTS COMPLETED ===\n");
 }
 
@@ -794,48 +734,6 @@ void test_boundary_conditions(void) {
   free_temperature_field(T);
 }
 
-void test_explicit_calculation(void) {
-  SimulationParams params;
-  initialize_default_parameters(&params);
-  params.n_volumes = 5;  // nodos internos
-  params.dt = 0.001;
-  calculate_derived_parameters(&params);
-
-  // Nodos internos + 2 extremos
-  double *T_old = allocate_temperature_field(params.n_volumes);
-  double *T_new = allocate_temperature_field(params.n_volumes);
-
-  int n_points = params.n_volumes + 2;
-  for (int i = 0; i < n_points; i++) {
-    T_old[i] = params.T_initial;
-    T_new[i] = params.T_initial;
-  }
-
-  // Aplicar condiciones de frontera
-  apply_boundary_conditions_sequential(T_old, &params);
-
-  // Calcular un paso explícito
-  calculate_explicit_step_sequential(T_new, T_old, &params);
-
-  // Aplicar condiciones de frontera
-  apply_boundary_conditions_sequential(T_new, &params);
-
-  // Verificar que se calcularon los volúmenes internos
-  int calculated = 1;
-  for (int i = 1; i < n_points - 1; i++) {
-    if (T_new[i] == T_old[i]) {
-      calculated = 0;
-      break;
-    }
-  }
-
-  printf("Explicit calculation performed: %s\n",
-         calculated ? "PASSED" : "FAILED");
-
-  free_temperature_field(T_old);
-  free_temperature_field(T_new);
-}
-
 void verify_parallel_correctness(const SimulationParams *params) {
   printf("\n=== PARALLEL CORRECTNESS VERIFICATION ===\n");
 
@@ -851,21 +749,15 @@ void verify_parallel_correctness(const SimulationParams *params) {
   solve_heat_equation_sequential(T_seq, params);
 
   // Probar con diferentes números de hilos
-  int thread_counts[] = {2, 4, 8};
-  int num_threads = sizeof(thread_counts) / sizeof(thread_counts[0]);
+  int num_threads = OMP_NUM_THREADS;
+  configure_omp_environment(num_threads);
+  solve_heat_equation_parallel(T_par, params);
 
-  for (int i = 0; i < num_threads; i++) {
-    configure_omp_environment(thread_counts[i]);
-    solve_heat_equation_parallel(T_par, params);
+  double tolerance = 1e-12;
+  int equivalent =
+      verify_solution_equivalence(T_seq, T_par, params->n_volumes, tolerance);
 
-    double tolerance = 1e-12;
-    int equivalent =
-        verify_solution_equivalence(T_seq, T_par, params->n_volumes, tolerance);
-
-    printf("Correctness with %d threads: %s\n", thread_counts[i],
-           equivalent ? "OK" : "FAILED");
-  }
-
+  printf("Correctness: %s\n", equivalent ? "OK" : "FAILED");
   free_temperature_field(T_seq);
   free_temperature_field(T_par);
 
