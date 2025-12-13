@@ -26,7 +26,7 @@ void initialize_default_parameters(SimulationParams *params) {
   // Inicializar arreglos auxiliares
   params->n_profiles = 5;
   double profile_step = params->total_time / params->n_profiles;
-  for (int i = 0; i < params->n_profiles-1; i++) {
+  for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
   }
   params->T_profiles =
@@ -246,7 +246,7 @@ void solve_transient_sequential(double *T, SimulationParams *params) {
   int i = 0; // posicion en time_samples y T_profiles
   int n_time_steps_max = params->n_time_steps;
 
-  while (i < params->n_profiles-1) {
+  while (i < params->n_profiles) {
     // 1. Identifica tiempo donde guardar perfil
     double total_time_temp = params->time_samples[i];
     // Recalcular número de pasos de tiempo para el perfil deseado
@@ -273,10 +273,6 @@ void solve_transient_sequential(double *T, SimulationParams *params) {
 
     i++; // seguimos con siguiente perfil
   }
-}
-
-void time_integration_sequential(double *T, const SimulationParams *params) {
-  // TODO
 }
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
@@ -333,10 +329,6 @@ void solve_transient_parallel(double *T, const SimulationParams *params) {
   configure_omp_environment(OMP_NUM_THREADS);
   // TODO
   printf("Parallel transient simulation completed\n");
-}
-
-void time_integration_parallel(double *T, const SimulationParams *params) {
-  // TODO
 }
 
 void calculate_explicit_step_parallel(double *T_new, const double *T_old,
@@ -436,38 +428,7 @@ int verify_solution_equivalence(const double *T_seq, const double *T_par,
   return (max_difference <= tolerance);
 }
 
-double calculate_numerical_error(const double *T_numeric,
-                                 const SimulationParams *params,
-                                 double current_time) {
-  // Validación simplificada usando propiedades físicas conocidas
-  double error = 0.0;
-  int count = 0;
-
-  // Verificar propiedades físicas básicas en lugar de solución analítica exacta
-  for (int i = 0; i < params->n_volumes - 1; i++) {
-    double x = (params->dx / 2) + i * params->dx;
-
-    // Propiedades físicas esperadas:
-    // 1. Temperaturas deben estar entre T_cooled y T_initial
-    int within_bounds = (T_numeric[i] >= params->T_cooled - 1e-6) &&
-                        (T_numeric[i] <= params->T_initial + 1e-6);
-
-    // 2. El perfil debe ser monótono decreciente (para este problema
-    // específico)
-    // 3. Las temperaturas cerca del borde enfriado deben ser más bajas
-
-    double expected_trend =
-        params->T_initial -
-        (params->T_initial - params->T_cooled) * (x / params->L);
-
-    error += fabs(T_numeric[i] - expected_trend);
-    count++;
-  }
-
-  return (count > 0) ? error / count : 0.0;
-}
-
-void validate_convergence_history(const SimulationParams *params) {
+void validate_convergence(const SimulationParams *params) {
   printf("\n=== CONVERGENCE VALIDATION ===\n");
 
   // Verificar estabilidad del esquema explícito
@@ -483,30 +444,6 @@ void validate_convergence_history(const SimulationParams *params) {
 
   if (Fo < 0.01) {
     printf("WARNING: Fo very small, potential precision issues\n");
-  }
-}
-
-void find_temperature_extremes(const double *T, int n_volumes, double *max_temp,
-                               double *min_temp) {
-  if (n_volumes <= 0) {
-    *max_temp = 0.0;
-    *min_temp = 0.0;
-    return;
-  }
-
-  *max_temp = T[0];
-  *min_temp = T[0];
-
-  // Incluir puntos de frontera
-  int n_points = n_volumes + 2;
-
-  for (int i = 0; i < n_points; i++) {
-    if (T[i] > *max_temp) {
-      *max_temp = T[i];
-    }
-    if (T[i] < *min_temp) {
-      *min_temp = T[i];
-    }
   }
 }
 
@@ -735,11 +672,6 @@ void print_performance_summary(const PerformanceMetrics *metrics) {
 // FUNCIONES DE PRUEBA Y VERIFICACIÓN
 // ============================================================================
 
-void run_correctness_test(void) {
-  printf("\n=== CORRECTNESS TESTS ===\n");
-  printf("=== TESTS COMPLETED ===\n");
-}
-
 void test_boundary_conditions(void) {
   SimulationParams params;
   initialize_default_parameters(&params);
@@ -766,9 +698,11 @@ void test_boundary_conditions(void) {
 
 void verify_parallel_correctness(const SimulationParams *params) {
   printf("\n=== PARALLEL CORRECTNESS VERIFICATION ===\n");
+  SimulationParams params_seq = *params;
+  SimulationParams params_par = *params;
+  double *T_seq = allocate_temperature_field(params_seq.n_volumes);
+  double *T_par = allocate_temperature_field(params_par.n_volumes);
 
-  double *T_seq = allocate_temperature_field(params->n_volumes);
-  double *T_par = allocate_temperature_field(params->n_volumes);
 
   if (T_seq == NULL || T_par == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for verification\n");
@@ -776,20 +710,26 @@ void verify_parallel_correctness(const SimulationParams *params) {
   }
 
   // Ejecutar ambas versiones
-  solve_heat_equation_sequential(T_seq, params);
+  solve_transient_sequential(T_seq, &params_seq);
 
   // Probar con diferentes números de hilos
   int num_threads = OMP_NUM_THREADS;
   configure_omp_environment(num_threads);
-  solve_heat_equation_parallel(T_par, params);
+  solve_transient_parallel(T_par, &params_par);
 
   double tolerance = 1e-12;
-  int equivalent =
-      verify_solution_equivalence(T_seq, T_par, params->n_volumes, tolerance);
-
+  int equivalent = 1;
+  for (int i = 0; i < params->n_profiles; i++) {
+    equivalent =
+        verify_solution_equivalence(params_seq.T_profiles[i], params_par.T_profiles[i], params->n_volumes, tolerance);
+    if (!equivalent) break;
+  }
   printf("Correctness: %s\n", equivalent ? "OK" : "FAILED");
   free_temperature_field(T_seq);
   free_temperature_field(T_par);
+  free_temperature_profiles(params_seq.T_profiles, params_seq.n_profiles);
+  free_temperature_profiles(params_par.T_profiles, params_par.n_profiles);
+
 
   printf("=== VERIFICATION COMPLETED ===\n");
 }

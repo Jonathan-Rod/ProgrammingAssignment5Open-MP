@@ -66,6 +66,7 @@ int main() {
 
 // ============= solve full transient ==============
   // Soluciona los perfiles completos y los acomoda en el array
+  validate_convergence(&params);
   double *T = allocate_temperature_field(params.n_volumes);
   solve_transient_sequential(T, &params);
 

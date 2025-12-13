@@ -274,23 +274,6 @@ void solve_transient_sequential(double* T,
                                 SimulationParams* params);  // TODO
 
 /**
- * @brief Integración temporal secuencial explícita del campo de temperaturas
- *
- * Paso a paso:
- * 1. Asigna memoria para campo temporal
- * 2. Para cada paso de tiempo:
- *    a. Calcula nuevas temperaturas con esquema explícito
- *    b. Aplica condiciones de frontera
- *    c. Intercambia punteros para siguiente iteración
- * 3. Libera memoria temporal
- *
- * @param T Arreglo de temperaturas (se actualiza)
- * @param params Parámetros de simulación
- */
-void time_integration_sequential(double* T,
-                                 const SimulationParams* params);  // TODO
-
-/**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito
  *
  * Paso a paso:
@@ -354,21 +337,6 @@ void solve_heat_equation_parallel(double* T,
  */
 void solve_transient_parallel(double* T,
                               const SimulationParams* params);  // TODO
-
-/**
- * @brief Integración temporal paralela explícita del campo de temperaturas
- *
- * Paso a paso:
- * 1. Paraleliza cálculo de paso explícito con OpenMP
- * 2. Usa directivas for para paralelizar volúmenes
- * 3. Aplica condiciones frontera después de sincronización
- * 4. Minimiza contención en acceso a memoria
- *
- * @param T Arreglo de temperaturas (se actualiza)
- * @param params Parámetros de simulación
- */
-void time_integration_parallel(double* T,
-                               const SimulationParams* params);  // TODO
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito en paralelo
@@ -506,25 +474,6 @@ int verify_solution_equivalence(const double* T_seq, const double* T_par,
                                 int n_volumes, double tolerance);  // DONE
 
 /**
- * @brief Calcula error numérico comparando con solución analítica (si
- * disponible)
- *
- * Paso a paso:
- * 1. Calcula solución analítica para caso simple
- * 2. Calcula normas de error (L1, L2, Linf)
- * 3. Considera comportamiento asintótico
- * 4. Retorna métrica de error principal
- *
- * @param T_numeric Solución numérica
- * @param params Parámetros de simulación
- * @param current_time Tiempo actual de simulación
- * @return Magnitud del error numérico
- */
-double calculate_numerical_error(const double* T_numeric,
-                                 const SimulationParams* params,
-                                 double current_time);  // !!!
-
-/**
  * @brief Valida historia de convergencia de la simulación explícita
  *
  * Paso a paso:
@@ -535,24 +484,7 @@ double calculate_numerical_error(const double* T_numeric,
  *
  * @param params Parámetros de simulación
  */
-void validate_convergence_history(const SimulationParams* params);  // TODO
-
-/**
- * @brief Encuentra temperaturas máxima y mínima en el dominio
- *
- * Paso a paso:
- * 1. Inicializa max y min con primer valor
- * 2. Recorre todos los volúmenes
- * 3. Actualiza max y min
- * 4. Retorna en estructura de métricas
- *
- * @param T Campo de temperaturas
- * @param n_volumes Número de volúmenes
- * @param max_temp Temperatura máxima (salida)
- * @param min_temp Temperatura mínima (salida)
- */
-void find_temperature_extremes(const double* T, int n_volumes, double* max_temp,
-                               double* min_temp);  // TODO
+void validate_convergence(const SimulationParams* params);  // DONE
 
 // ============================================================================
 // GESTIÓN DE DATOS Y ARCHIVOS
@@ -576,7 +508,7 @@ void find_temperature_extremes(const double* T, int n_volumes, double* max_temp,
 void save_temperature_profile_csv(const double* T,
                                   const SimulationParams* params,
                                   double current_time,
-                                  const char* filename);  // TODO
+                                  const char* filename);  // DONE
 
 /**
  * @brief Guarda métricas de performance en archivo CSV
@@ -791,13 +723,6 @@ void print_performance_summary(const PerformanceMetrics* metrics);
 // ============================================================================
 // FUNCIONES DE PRUEBA Y VERIFICACIÓN
 // ============================================================================
-
-/**
- * @brief Ejecuta tests de corrección de la implementación explícita
- * 1. test boundary conditions
- * 2. calculate numerical error
- */
-void run_correctness_test(void);
 
 /**
  * @brief Verifica correcta aplicación de condiciones de frontera
