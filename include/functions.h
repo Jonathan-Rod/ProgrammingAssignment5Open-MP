@@ -271,7 +271,7 @@ void solve_heat_equation_sequential(double* T,
  * @param params Parámetros de simulación
  */
 void solve_transient_sequential(double* T,
-                                SimulationParams* params);  // TODO
+                                SimulationParams* params);  // DONE
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito
@@ -539,7 +539,7 @@ void save_performance_metrics_csv(const PerformanceMetrics* metrics,
  * @param filename Nombre del archivo CSV
  */
 void save_transient_profiles_csv(const SimulationParams* params,
-                                 const char* filename);  // TODO
+                                 const char* filename);  // DONE
 
 /**
  * @brief Guarda datos de escalabilidad en CSV
@@ -570,7 +570,7 @@ void save_scalability_data_csv(const PerformanceMetrics* metrics_array,
  * @param mode Modo de apertura
  * @return Puntero FILE* o NULL en caso de error
  */
-FILE* safe_file_open(const char* filename, const char* mode);  // TODO
+FILE* safe_file_open(const char* filename, const char* mode);  // DONE
 
 /**
  * @brief Cierra archivo de forma segura
@@ -583,7 +583,7 @@ FILE* safe_file_open(const char* filename, const char* mode);  // TODO
  *
  * @param file Puntero al archivo a cerrar
  */
-void safe_file_close(FILE* file);  // TODO
+void safe_file_close(FILE* file);  // DONE
 
 /**
  * @brief Escribe headers en archivo CSV
@@ -599,7 +599,7 @@ void safe_file_close(FILE* file);  // TODO
  * @param n_headers Número de headers
  */
 void write_csv_headers(FILE* file, const char* headers[],
-                       int n_headers);  // TODO
+                       int n_headers);  // DONE
 
 // ============================================================================
 // CONFIGURACIÓN Y CONTROL OPENMP
@@ -727,6 +727,6 @@ void test_boundary_conditions(void);
  *
  * @param params Parámetros de simulación
  */
-void verify_parallel_correctness(const SimulationParams* params);
+void verify_parallel_correctness(const SimulationParams* params); // CHECK
 
 #endif  // FUNCTIONS_H
