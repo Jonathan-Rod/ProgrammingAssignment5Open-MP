@@ -535,12 +535,10 @@ void save_performance_metrics_csv(const PerformanceMetrics* metrics,
  * 3. Para cada tiempo, escribe perfil completo
  * 4. Usa formato compatible con herramientas de visualización
  *
- * @param T_profiles Arreglo 2D de perfiles de temperatura
  * @param params Parámetros de simulación
  * @param filename Nombre del archivo CSV
  */
-void save_transient_profiles_csv(const double* T_profiles,
-                                 const SimulationParams* params,
+void save_transient_profiles_csv(const SimulationParams* params,
                                  const char* filename);  // TODO
 
 /**
@@ -675,23 +673,6 @@ void set_omp_dynamic_scheduling(int chunk_size);
  * @param label Etiqueta descriptiva
  */
 void print_temperature_field(const double* T, int n_volumes, const char* label);
-
-/**
- * @brief Imprime progreso de la simulación
- *
- * Paso a paso:
- * 1. Calcula porcentaje completado
- * 2. Formatea barra de progreso ASCII
- * 3. Muestra temperatura máxima y mínima actual
- * 4. Actualiza en misma línea (carriage return)
- *
- * @param iteration Iteración actual
- * @param total Iteraciones totales
- * @param max_temp Temperatura máxima actual
- * @param min_temp Temperatura mínima actual
- */
-void print_simulation_progress(int iteration, int total, double max_temp,
-                               double min_temp);
 
 /**
  * @brief Visualiza particionamiento de dominio para debug

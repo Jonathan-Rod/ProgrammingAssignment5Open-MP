@@ -57,10 +57,6 @@ void calculate_derived_parameters(SimulationParams *params) {
     params->n_time_steps = 0;
   }
 
-  // TODO TOREMOVE FOR DEBUG
-  params->n_time_steps = 200;
-  //
-
   // Verificar consistencia
   if (params->dx <= 0) {
     fprintf(stderr, "Error: dx must be positive\n");
@@ -237,42 +233,43 @@ void solve_heat_equation_sequential(double *T, const SimulationParams *params) {
       T[i] = T_temp[i];
     }
   }
-
   free_temperature_field(T_temp);
 }
 
 void solve_transient_sequential(double *T, SimulationParams *params) {
   int n_points = params->n_volumes + 2;
-  int i = 0; // posicion en time_samples y T_profiles
-  int n_time_steps_max = params->n_time_steps;
+  int original_n_steps = params->n_time_steps;
 
-  while (i < params->n_profiles) {
-    // 1. Identifica tiempo donde guardar perfil
-    double total_time_temp = params->time_samples[i];
-    // Recalcular número de pasos de tiempo para el perfil deseado
-    if (params->dt > 0) {
-      params->n_time_steps = (int)(total_time_temp / params->dt);
-      if (params->n_time_steps * params->dt < total_time_temp) {
-        params->n_time_steps++;  // Asegurar que cubre el tiempo total
-      }
-    } else {
-      params->n_time_steps = 0;
-    }
-    if(params->n_time_steps > n_time_steps_max) {
-      // pasaste el tiempo total original
-      params->n_time_steps = n_time_steps_max;
-    }
-
-    // 2. Resuelve la ecuación de calor para el perfil
-    solve_heat_equation_sequential(T, &params);
-
-    // 3. Guarda perfil en estructura organizada
-    for (int j = 0; j < n_points - 1; j++) {
-      params->T_profiles[i][j] = T[i];
-    }
-
-    i++; // seguimos con siguiente perfil
+  // Inicializar temperaturas
+  for (int i = 0; i < n_points; i++) {
+    T[i] = params->T_initial;
   }
+  apply_boundary_conditions_sequential(T, params);
+
+  for (int i = 0; i < params->n_profiles; i++) {
+    double target_time = params->time_samples[i];
+
+    // Calcular pasos para este perfil
+    int steps_needed = (int)(target_time / params->dt + 0.5);
+    if (steps_needed > original_n_steps) {
+      steps_needed = original_n_steps;
+    }
+
+    // Ejecutar simulación hasta este tiempo
+    params->n_time_steps = steps_needed;
+    solve_heat_equation_sequential(T, params);
+
+    // Guardar perfil
+    for (int j = 0; j < n_points; j++) {
+      params->T_profiles[i][j] = T[j];
+    }
+
+    printf("Calculando perfil %d de %d en tiempo %.2f\n", i + 1,
+           params->n_profiles, target_time);
+  }
+
+  // Restaurar valor original
+  params->n_time_steps = original_n_steps;
 }
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
@@ -464,7 +461,7 @@ void save_temperature_profile_csv(const double *T,
   FILE *file = safe_file_open(filename, "w");
   if (file == NULL) return;
 
-  fprintf(file, "x (m),T (C)]\n");
+  fprintf(file, "x (m),T (C)], Time (s): %.2f\n", current_time);
   for (int i = 0; i < n_points; i++) {
     double x;
     if (i == 0) {
@@ -486,10 +483,20 @@ void save_performance_metrics_csv(const PerformanceMetrics *metrics,
   // TODO
 }
 
-void save_transient_profiles_csv(const double *T_profiles,
-                                 const SimulationParams *params,
+void save_transient_profiles_csv(const SimulationParams *params,
                                  const char *filename) {
-  // TODO
+  if (params == NULL || filename == NULL) {
+    fprintf(stderr, "Error: Invalid parameters\n");
+    return;
+  }
+  char filename_temp[256];
+
+  for (int i = 0; i < params->n_profiles; i++) {
+    sprintf(filename_temp, "%s_profile_%d_at_%.2f.csv", filename, i + 1,
+            params->time_samples[i]);
+    save_temperature_profile_csv(params->T_profiles[i], params,
+                                 params->time_samples[i], filename_temp);
+  }
 }
 
 void save_scalability_data_csv(const PerformanceMetrics *metrics_array,
@@ -596,30 +603,6 @@ void print_temperature_field(const double *T, int n_volumes,
   }
 }
 
-void print_simulation_progress(int iteration, int total, double max_temp,
-                               double min_temp) {
-  int bar_width = 50;
-  float progress = (float)iteration / total;
-  int pos = (int)(bar_width * progress);
-
-  printf("\rProgress: [");
-  for (int i = 0; i < bar_width; i++) {
-    if (i < pos)
-      printf("=");
-    else if (i == pos)
-      printf(">");
-    else
-      printf(" ");
-  }
-  printf("] %d%% | Step: %d/%d | Tmax: %.2fC | Tmin: %.2fC",
-         (int)(progress * 100), iteration, total, max_temp, min_temp);
-  fflush(stdout);
-
-  if (iteration == total) {
-    printf("\n");
-  }
-}
-
 void visualize_domain_partitioning(int n_volumes, int n_threads) {
   printf("\n=== DOMAIN PARTITIONING ===\n");
   printf("Total volumes: %d\n", n_volumes);
@@ -703,7 +686,6 @@ void verify_parallel_correctness(const SimulationParams *params) {
   double *T_seq = allocate_temperature_field(params_seq.n_volumes);
   double *T_par = allocate_temperature_field(params_par.n_volumes);
 
-
   if (T_seq == NULL || T_par == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for verification\n");
     return;
@@ -720,8 +702,9 @@ void verify_parallel_correctness(const SimulationParams *params) {
   double tolerance = 1e-12;
   int equivalent = 1;
   for (int i = 0; i < params->n_profiles; i++) {
-    equivalent =
-        verify_solution_equivalence(params_seq.T_profiles[i], params_par.T_profiles[i], params->n_volumes, tolerance);
+    equivalent = verify_solution_equivalence(params_seq.T_profiles[i],
+                                             params_par.T_profiles[i],
+                                             params->n_volumes, tolerance);
     if (!equivalent) break;
   }
   printf("Correctness: %s\n", equivalent ? "OK" : "FAILED");
@@ -729,7 +712,6 @@ void verify_parallel_correctness(const SimulationParams *params) {
   free_temperature_field(T_par);
   free_temperature_profiles(params_seq.T_profiles, params_seq.n_profiles);
   free_temperature_profiles(params_par.T_profiles, params_par.n_profiles);
-
 
   printf("=== VERIFICATION COMPLETED ===\n");
 }

@@ -46,37 +46,23 @@ int main() {
 
   double *T = allocate_temperature_field(params.n_volumes);
 
-  // 1. Solucionar ecuación de calor (sin perfiles)
+  // 1. Resolver ecuación de calor
   solve_heat_equation_sequential(T, &params);
-  print_temperature_field(T, params.n_volumes,
-                          "Sequential Solve Heat Equation");
-
-  // 2. Guardar temperatura final en CSV
   save_temperature_profile_csv(T, &params, params.total_time,
-                               "../data/Sequential_Solve_Heat_Equation.csv");
+                               "../data/sequential_solve_heat_equation.csv");
 
-  // Liberar memoria
-  free_temperature_field(T);
+  print_temperature_field(T, params.n_volumes,
+                          "../data/sequential_solve_heat_equation.csv");
 
-  // Solo liberar T_profiles si fue asignado
-  if (params.T_profiles != NULL) {
-    free_temperature_profiles(params.T_profiles, params.n_profiles);
-  }
-
-
-// ============= solve full transient ==============
-  // Soluciona los perfiles completos y los acomoda en el array
+  // 2. Resolver transitoria
   validate_convergence(&params);
-  double *T = allocate_temperature_field(params.n_volumes);
   solve_transient_sequential(T, &params);
-
-  // header example: x(m) , T @ t=time_samples[0] ,  T @ t=time_samples[0] ...
-  // save_transient_profiles_csv();
+  save_transient_profiles_csv(&params, "../data/sequential_solve_transient");
 
   // Liberar memoria
   free_temperature_field(T);
 
-  // Solo liberar T_profiles si fue asignado
+  // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
   }
