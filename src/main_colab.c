@@ -66,7 +66,7 @@ int main() {
 
 
   params.T_profiles = allocate_temperature_profiles(params.n_profiles, params.n_volumes);
-  solve_transient_parallel(&params, 4);
+  solve_transient_parallel(&params, 50);
   save_transient_profiles_csv(&params, "data/transient_par/parallel_solve_transient");
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {

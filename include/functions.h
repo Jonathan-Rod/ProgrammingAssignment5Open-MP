@@ -157,7 +157,7 @@ void free_temperature_field(double* T);  // DONE
  * @param TT
  * @param profiles
  */
-void free_temperature_profiles(double** TT, int profiles);
+void free_temperature_profiles(double** TT, int profiles); // DONE
 
 /**
  * @brief Valida que los parámetros de simulación sean físicamente
@@ -335,7 +335,7 @@ void solve_heat_equation_parallel(double* T,
  * @param T Arreglo de temperaturas inicial
  * @param params Parámetros de simulación
  */
-void solve_transient_parallel(SimulationParams* params, int chunck_size);  // TODO
+void solve_transient_parallel(SimulationParams* params, int chunck_size);  // DONE
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito en paralelo
@@ -722,6 +722,6 @@ void run_correctness_test(void); // DONE
  *
  * @param params Parámetros de simulación
  */
-void verify_parallel_correctness(const SimulationParams* params); // TODO
+void verify_parallel_correctness(const SimulationParams* params); // DONE
 
 #endif  // FUNCTIONS_H

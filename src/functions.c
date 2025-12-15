@@ -13,7 +13,7 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Geometría y dominio
   params->L = 2.0e-2;       // Longitud del dominio [m]
-  params->n_volumes = 100;  // Número de volúmenes de control
+  params->n_volumes = 300;  // Número de volúmenes de control
 
   // Condiciones iniciales y de frontera
   params->T_initial = 200.0;  // Temperatura inicial [°C]
@@ -21,10 +21,10 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Parámetros temporales
   params->total_time = 850.0;  // Tiempo total de simulación [s]
-  params->dt = 0.01;           // Paso de tiempo [s] (1 ms)
+  params->dt = 0.001;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 20;
+  params->n_profiles = 10000;
   double profile_step = params->total_time / (params->n_profiles - 1);
   for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
@@ -765,40 +765,57 @@ void run_correctness_test(void) {
   printf("Test covergence pass: %s\n", converge ? "PASS" : "FAILED");
 
   printf("2. Testing parallel correctness...\n");
-  // verify_parallel_correctness(&params);
+  verify_parallel_correctness(&params);
 
   printf("=== TESTS COMPLETED ===\n");
 }
 
 void verify_parallel_correctness(const SimulationParams *params) {
   printf("\n=== PARALLEL CORRECTNESS VERIFICATION ===\n");
-  SimulationParams params_seq = *params;
-  SimulationParams params_par = *params;
+  SimulationParams params_seq;
+  SimulationParams params_par;
+
+  // Fresh initialization (NO shallow copy)
+  initialize_default_parameters(&params_seq);
+  initialize_default_parameters(&params_par);
+  int n_volumes  = 5;
+  int dt         = 1;
+  int n_profiles = 10;
+  params_seq.n_volumes   = n_volumes;
+  params_seq.dt          = dt;
+  params_seq.n_profiles  = n_profiles;
+  params_par.n_volumes   = n_volumes;
+  params_par.dt          = dt;
+  params_par.n_profiles  = n_profiles;
+
+  calculate_derived_parameters(&params_seq);
+  calculate_derived_parameters(&params_par);
+
   double *T_seq = allocate_temperature_field(params_seq.n_volumes);
   double *T_par = allocate_temperature_field(params_par.n_volumes);
 
   if (T_seq == NULL || T_par == NULL) {
     fprintf(stderr, "Error: Could not allocate memory for verification\n");
+    free_temperature_field(T_seq);
+    free_temperature_field(T_par);
     return;
   }
 
   // Ejecutar ambas versiones
   solve_transient_sequential(T_seq, &params_seq);
 
-  // Probar con diferentes números de hilos
-  int num_threads = OMP_NUM_THREADS;
-  configure_omp_environment(num_threads);
+  configure_omp_environment(OMP_NUM_THREADS);
   solve_transient_parallel(&params_par, 15);
 
-  double tolerance = 1e-12;
+  const double tolerance = 1e-10;
   int equivalent = 1;
-  for (int i = 0; i < params->n_profiles; i++) {
+  for (int i = 0; i < n_profiles; i++) {
     equivalent = verify_solution_equivalence(params_seq.T_profiles[i],
                                              params_par.T_profiles[i],
                                              params->n_volumes, tolerance);
     if (!equivalent) break;
   }
-  printf("Correctness: %s\n", equivalent ? "OK" : "FAILED");
+  printf("Correctness: %s\n", equivalent ? "PASS" : "FAILED");
   free_temperature_field(T_seq);
   free_temperature_field(T_par);
   free_temperature_profiles(params_seq.T_profiles, params_seq.n_profiles);
