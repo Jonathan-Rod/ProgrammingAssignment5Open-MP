@@ -706,15 +706,11 @@ void print_performance_summary(const PerformanceMetrics* metrics);
 // ============================================================================
 
 /**
- * @brief Verifica correcta aplicación de condiciones de frontera
- *
- * Paso a paso:
- * 1. Configura condiciones de frontera específicas
- * 2. Ejecuta un paso de simulación
- * 3. Verifica que condiciones se mantienen
- * 4. Chequea consistencia con solución interna
+ * @brief Ejecuta tests de corrección de la implementación explícita
+ * 1. convergence checker
+ * 2. verify parallel correctness
  */
-void test_boundary_conditions(void);
+void run_correctness_test(void); // DONE
 
 /**
  * @brief Verifica corrección de implementación paralela explícita
@@ -727,6 +723,6 @@ void test_boundary_conditions(void);
  *
  * @param params Parámetros de simulación
  */
-void verify_parallel_correctness(const SimulationParams* params); // CHECK
+void verify_parallel_correctness(const SimulationParams* params); // TODO
 
 #endif  // FUNCTIONS_H

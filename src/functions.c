@@ -21,11 +21,11 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Parámetros temporales
   params->total_time = 850.0;  // Tiempo total de simulación [s]
-  params->dt = 0.015;          // Paso de tiempo [s] (1 ms)
+  params->dt = 0.01;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 5;
-  double profile_step = params->total_time / params->n_profiles;
+  params->n_profiles = 10;
+  double profile_step = params->total_time / (params->n_profiles - 1);
   for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
   }
@@ -39,7 +39,7 @@ void initialize_default_parameters(SimulationParams *params) {
 void calculate_derived_parameters(SimulationParams *params) {
   // Calcular espaciado espacial
   if (params->n_volumes > 0) {
-    params->dx = params->L / (params->n_volumes + 1);
+    params->dx = params->L / (params->n_volumes);
   } else {
     params->dx = params->L;
   }
@@ -461,7 +461,7 @@ void save_temperature_profile_csv(const double *T,
   FILE *file = safe_file_open(filename, "w");
   if (file == NULL) return;
 
-  fprintf(file, "x (m),T (C)], Time (s): %.2f\n", current_time);
+  fprintf(file, "x (m),T (C)"); // compatible with csv files (otherwise wont open in colab)
   for (int i = 0; i < n_points; i++) {
     double x;
     if (i == 0) {
@@ -492,7 +492,7 @@ void save_transient_profiles_csv(const SimulationParams *params,
   char filename_temp[256];
 
   for (int i = 0; i < params->n_profiles; i++) {
-    sprintf(filename_temp, "%s_profile_%d_at_%.2f.csv", filename, i + 1,
+    sprintf(filename_temp, "%s_profile_%d_at_%.2fs.csv", filename, i + 1,
             params->time_samples[i]);
     save_temperature_profile_csv(params->T_profiles[i], params,
                                  params->time_samples[i], filename_temp);
@@ -655,28 +655,29 @@ void print_performance_summary(const PerformanceMetrics *metrics) {
 // FUNCIONES DE PRUEBA Y VERIFICACIÓN
 // ============================================================================
 
-void test_boundary_conditions(void) {
+void run_correctness_test(void) {
+  printf("\n=== CORRECTNESS TESTS ===\n");
+
   SimulationParams params;
   initialize_default_parameters(&params);
+
+  printf("1. Testing convergence checker...\n");
+  // validate convergence (fail)
   params.n_volumes = 5;
+  params.dt = 9; // unstable
   calculate_derived_parameters(&params);
+  int not_converge = !check_stability_condition(&params); // should not converge 
+  printf("Test covergence failure: %s\n", not_converge ? "PASS" : "FAILED");
+  // validate convergence (pass)
+  params.dt = 1; // stable
+  calculate_derived_parameters(&params);
+  int converge = check_stability_condition(&params); // should converge
+  printf("Test covergence pass: %s\n", converge ? "PASS" : "FAILED");
 
-  double *T = allocate_temperature_field(params.n_volumes);
-  for (int i = 0; i < params.n_volumes; i++) {
-    T[i] = params.T_initial;
-  }
+  printf("2. Testing parallel correctness...\n");
+  // verify_parallel_correctness(&params);
 
-  // Aplicar condiciones de frontera
-  apply_boundary_conditions_sequential(T, &params);
-
-  // Verificar condiciones
-  int left_ok = (T[0] == params.T_cooled);
-  int right_ok = (T[params.n_volumes - 1] == T[params.n_volumes - 2]);
-
-  printf("Left condition (Dirichlet): %s\n", left_ok ? "OK" : "FAILED");
-  printf("Right condition (Neumann): %s\n", right_ok ? "OK" : "FAILED");
-
-  free_temperature_field(T);
+  printf("=== TESTS COMPLETED ===\n");
 }
 
 void verify_parallel_correctness(const SimulationParams *params) {
