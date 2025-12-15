@@ -79,8 +79,6 @@ typedef struct {
   double speedup;          // Speedup = sequential_time/parallel_time
   double efficiency;       // Eficiencia = speedup/n_threads
   int optimal_threads;     // Número óptimo de hilos encontrado
-  double max_temperature;  // Temperatura máxima en el dominio
-  double min_temperature;  // Temperatura mínima en el dominio
 } PerformanceMetrics;      // DONE
 
 // ============================================================================

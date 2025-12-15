@@ -24,7 +24,7 @@ void initialize_default_parameters(SimulationParams *params) {
   params->dt = 0.001;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 10000;
+  params->n_profiles = 5;
   double profile_step = params->total_time / (params->n_profiles - 1);
   for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
@@ -436,7 +436,52 @@ void apply_boundary_conditions_parallel(double *T,
 PerformanceMetrics compare_sequential_vs_parallel(
     const SimulationParams *params) {
   PerformanceMetrics metrics = {0};
-  // TODO
+  
+  SimulationParams seq = *params;
+  SimulationParams par = *params;
+
+  // evitar que ambos T_profiles apunten al mismo espacio en memoria
+  seq.T_profiles = NULL;
+  par.T_profiles = NULL;
+  seq.T_profiles = allocate_temperature_profiles(seq.n_profiles, seq.n_volumes);
+  par.T_profiles = allocate_temperature_profiles(par.n_profiles, par.n_volumes);
+  if (!seq.T_profiles || !par.T_profiles) {
+    fprintf(stderr, "Error: Could not allocate T_profiles for benchmarking\n");
+    free_temperature_profiles(seq.T_profiles, seq.n_profiles);
+    free_temperature_profiles(par.T_profiles, par.n_profiles);
+    return metrics;
+  }
+
+  // sequential bench
+  double start_time, end_time;
+
+  double *T_seq = allocate_temperature_field(seq.n_volumes);
+  start_time = omp_get_wtime();
+  solve_transient_sequential(T_seq, &seq);
+  end_time = omp_get_wtime();
+  double time_seq = end_time - start_time;
+  if (seq.T_profiles != NULL) {
+    free_temperature_profiles(seq.T_profiles, seq.n_profiles);
+    seq.T_profiles = NULL;
+  }
+  free_temperature_field(T_seq);
+
+  // parallel bench
+  start_time = omp_get_wtime();
+  solve_transient_parallel(&par, 50);
+  end_time = omp_get_wtime();
+  double time_par = end_time - start_time;
+  if (par.T_profiles != NULL) {
+    free_temperature_profiles(par.T_profiles, par.n_profiles);
+    par.T_profiles = NULL;
+  }
+
+  // update metrics
+  metrics.sequential_time = time_seq;
+  metrics.parallel_time = time_par;
+  metrics.speedup = calculate_speedup_ratio(time_seq, time_par);
+  metrics.efficiency = calculate_parallel_efficiency(metrics.speedup, OMP_NUM_THREADS);
+
   return metrics;
 }
 
@@ -450,6 +495,7 @@ void performance_sweep_parameters(const SimulationParams *base_params) {
   for (int i = 0; i < profiles_size; i++) {
     // TODO
   }
+  
 }
 
 double calculate_speedup_ratio(double seq_time, double par_time) {
