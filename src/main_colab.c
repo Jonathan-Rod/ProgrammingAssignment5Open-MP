@@ -41,6 +41,8 @@ void print_parameters(SimulationParams *params) {
 }
 
 int main() {
+  setvbuf(stdout, NULL, _IONBF, 0);
+  setvbuf(stderr, NULL, _IONBF, 0);
 
   run_correctness_test();
 
@@ -57,17 +59,20 @@ int main() {
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
+    params.T_profiles = NULL;
   }
-  solve_transient_parallel(&params, 2);
+  // Liberar memoria
+  free_temperature_field(T);
+
+
+  params.T_profiles = allocate_temperature_profiles(params.n_profiles, params.n_volumes);
+  solve_transient_parallel(&params, 4);
   save_transient_profiles_csv(&params, "data/transient_par/parallel_solve_transient");
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
+    params.T_profiles = NULL;
   }
-
-  // Liberar memoria
-  free_temperature_field(T);
-
 
   return 0;
 }

@@ -102,8 +102,11 @@ void free_temperature_field(double *T) {
 }
 
 void free_temperature_profiles(double **TT, int profiles) {
-  for (int i = 0; i < profiles; i++) {
-    free_temperature_field(TT[i]);
+  if (TT != NULL) {
+    for (int i = 0; i < profiles; i++) {
+      free_temperature_field(TT[i]);
+    }
+    free(TT); // free outer array too
   }
 }
 
@@ -344,7 +347,11 @@ void solve_transient_parallel(SimulationParams *params, int chunck_size) {
   int original_n_steps = params->n_time_steps;
 
   // Precompute steps needed for each profile
-  int *steps = (int*)malloc(params->n_profiles * sizeof(int));
+  int *steps = (int *)calloc(params->n_profiles, sizeof(int));
+  if (steps == NULL) {
+    fprintf(stderr, "Error: Could not allocate memory for profile steps\n");
+    return;
+  }
   for (int i = 0; i < params->n_profiles; i++) {
     double target_time = params->time_samples[i];
     int steps_needed = (int)(target_time / params->dt);
@@ -354,17 +361,22 @@ void solve_transient_parallel(SimulationParams *params, int chunck_size) {
     steps[i] = steps_needed;
   }
   
-  int i, j, n_time_steps;
-  #pragma omp parallel for schedule(dynamic, chunck_size) shared(params, steps) private(i, j, n_time_steps)
-  for (i = 0; i < params->n_profiles; i++) {
+  #pragma omp parallel for schedule(dynamic, chunck_size) shared(params, steps)
+  for (int i = 0; i < params->n_profiles; i++) {
     
     double *T = allocate_temperature_field(params->n_volumes);
+    if (!T) {
+      #pragma omp critical
+      fprintf(stderr, "Allocation failed in thread %d for profile %d\n",
+              omp_get_thread_num(), i);
+      continue;
+    }
     
-    n_time_steps = steps[i];
+    int n_time_steps = steps[i];
     solve_heat_equation_parallel(T, params, n_time_steps);
 
     // Guardar perfil
-    for (j = 0; j < n_points; j++) {
+    for (int j = 0; j < n_points; j++) {
       params->T_profiles[i][j] = T[j];
     }
 
@@ -374,8 +386,9 @@ void solve_transient_parallel(SimulationParams *params, int chunck_size) {
     printf("Calculando perfil %d de %d en tiempo %.2f\n", i + 1,
            params->n_profiles, params->time_samples[i]);
   }
-
-  free(steps);
+  if (steps != NULL) {
+    free(steps);
+  }
   printf("Parallel transient simulation completed\n");
 }
 

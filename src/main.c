@@ -39,46 +39,35 @@ void print_parameters(SimulationParams *params) {
 }
 
 int main() {
+  run_correctness_test();
+
   SimulationParams params;
   initialize_default_parameters(&params);
   print_parameters(&params);
 
-  run_correctness_test();
-
   double *T = allocate_temperature_field(params.n_volumes);
 
-  // 1. Resolver ecuación de calor
-  solve_heat_equation_sequential(T, &params);
-  save_temperature_profile_csv(T, &params, params.total_time,
-                               "../data/sequential_solve_heat_equation.csv");
-
-  print_temperature_field(T, params.n_volumes,
-                          "../data/sequential_solve_heat_equation.csv");
-
-  // 2. Resolver transitoria
+  // Resolver transitoria sequencial
   validate_convergence(&params);
   solve_transient_sequential(T, &params);
   save_transient_profiles_csv(&params, "../data/transient_seq/sequential_solve_transient");
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
+    params.T_profiles = NULL;
   }
+  // Liberar memoria
+  free_temperature_field(T);
 
-  solve_transient_parallel(&params, 2);
+
+  params.T_profiles = allocate_temperature_profiles(params.n_profiles, params.n_volumes);
+  solve_transient_parallel(&params, 4);
   save_transient_profiles_csv(&params, "../data/transient_par/parallel_solve_transient");
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
+    params.T_profiles = NULL;
   }
-
-  // Liberar memoria
-  free_temperature_field(T);
-
-
-  return 0;
-
-  // Liberar memoria
-  free_temperature_field(T);
 
   return 0;
 }
