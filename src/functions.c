@@ -487,15 +487,45 @@ PerformanceMetrics compare_sequential_vs_parallel(
 
 void performance_sweep_parameters(const SimulationParams *base_params) {
   printf("\n=== PERFORMANCE PARAMETER SWEEP ===\n");
+  if (!base_params) return;
 
-  // Variar número de profiles
-  int profiles_numbers[] = {100, 1000, 5000, 10000};
+  // const char *csv_file = "data/performance_sweep.csv"; // colab
+  const char *csv_file = "../data/performance_sweep.csv";
+
+  int profiles_numbers[] = {100, 1000, 5000};
   int profiles_size = sizeof(profiles_numbers) / sizeof(profiles_numbers[0]);
 
   for (int i = 0; i < profiles_size; i++) {
-    // TODO
+    SimulationParams p = *base_params;
+
+    // vary only n_profiles
+    p.n_profiles = profiles_numbers[i];
+
+    // recompute time samples (important!)
+    double step = p.total_time / (p.n_profiles - 1);
+    for (int j = 0; j < p.n_profiles; j++) {
+      p.time_samples[j] = step * j;
+    }
+
+    printf("\nRunning benchmark with n_profiles = %d\n", p.n_profiles);
+
+    PerformanceMetrics metrics = compare_sequential_vs_parallel(&p);
+
+    save_performance_metrics_csv(p.n_profiles,
+                                 p.n_volumes,
+                                 p.dt,
+                                 OMP_NUM_THREADS,
+                                 &metrics,
+                                 csv_file);
+
+    printf("Seq: %.4f s | Par: %.4f s | Speedup: %.2fx | Eff: %.1f%%\n",
+           metrics.sequential_time,
+           metrics.parallel_time,
+           metrics.speedup,
+           metrics.efficiency * 100.0);
   }
-  
+
+  printf("\nSweep completed. Results saved to %s\n", csv_file);
 }
 
 double calculate_speedup_ratio(double seq_time, double par_time) {
@@ -614,9 +644,45 @@ void save_temperature_profile_csv(const double *T,
   safe_file_close(file);
 }
 
-void save_performance_metrics_csv(const PerformanceMetrics *metrics,
+void save_performance_metrics_csv(int n_profiles,
+                                  int n_volumes,
+                                  double dt,
+                                  int omp_num_threads,
+                                  const PerformanceMetrics *metrics,
                                   const char *filename) {
-  // TODO
+  if (metrics == NULL || filename == NULL) {
+    fprintf(stderr, "Error: Invalid parameters\n");
+    return;
+  }
+
+  // write header only once
+  int write_header = 0;
+  FILE *test = fopen(filename, "r");
+  if (test == NULL) {
+    write_header = 1;
+  } else {
+    fclose(test);
+  }
+
+  FILE *file = safe_file_open(filename, "a");
+  if (!file) return;
+
+  if (write_header) {
+    fprintf(file,
+            "n_profiles,n_volumes,dt,omp_num_threads,seq_time_s,par_time_s,speedup,efficiency\n");
+  }
+
+  fprintf(file, "%d,%d,%.10g,%d,%.10f,%.10f,%.6f,%.6f\n",
+          n_profiles,
+          n_volumes,
+          dt,
+          omp_num_threads,
+          metrics->sequential_time,
+          metrics->parallel_time,
+          metrics->speedup,
+          metrics->efficiency);
+
+  safe_file_close(file);
 }
 
 void save_transient_profiles_csv(const SimulationParams *params,

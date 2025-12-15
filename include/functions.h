@@ -385,7 +385,7 @@ void apply_boundary_conditions_parallel(
  * @return Estructura con métricas de performance comparativas
  */
 PerformanceMetrics compare_sequential_vs_parallel(
-    const SimulationParams* params);  // TODO
+    const SimulationParams* params);  // DONE
 
 /**
  * @brief Barrido de parámetros para análisis de sensibilidad de performance
@@ -398,7 +398,7 @@ PerformanceMetrics compare_sequential_vs_parallel(
  *
  * @param base_params Parámetros base para la simulación
  */
-void performance_sweep_parameters(const SimulationParams* base_params);  // TODO
+void performance_sweep_parameters(const SimulationParams* base_params);  // DONE
 
 /**
  * @brief Calcula ratio de speedup entre versiones
@@ -520,8 +520,12 @@ void save_temperature_profile_csv(const double* T,
  * @param metrics Métricas a guardar
  * @param filename Nombre del archivo CSV
  */
-void save_performance_metrics_csv(const PerformanceMetrics* metrics,
-                                  const char* filename);  // TODO
+void save_performance_metrics_csv(int n_profiles,
+                                  int n_volumes,
+                                  double dt,
+                                  int omp_num_threads,
+                                  const PerformanceMetrics *metrics,
+                                  const char *filename);  // DONE
 
 /**
  * @brief Guarda múltiples perfiles transitorios en CSV
