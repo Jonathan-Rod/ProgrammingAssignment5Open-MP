@@ -45,29 +45,31 @@ int main() {
   initialize_default_parameters(&params);
   print_parameters(&params);
 
-  double *T = allocate_temperature_field(params.n_volumes);
+  // double *T = allocate_temperature_field(params.n_volumes);
 
-  // Resolver transitoria sequencial
-  validate_convergence(&params);
-  solve_transient_sequential(T, &params);
-  save_transient_profiles_csv(&params, "../data/transient_seq/sequential_solve_transient");
-  // liberar T_profiles si fue asignado
-  if (params.T_profiles != NULL) {
-    free_temperature_profiles(params.T_profiles, params.n_profiles);
-    params.T_profiles = NULL;
-  }
-  // Liberar memoria
-  free_temperature_field(T);
+  // // Resolver transitoria sequencial
+  // validate_convergence(&params);
+  // solve_transient_sequential(T, &params);
+  // save_transient_profiles_csv(&params, "../data/transient_seq/sequential_solve_transient");
+  // // liberar T_profiles si fue asignado
+  // if (params.T_profiles != NULL) {
+  //   free_temperature_profiles(params.T_profiles, params.n_profiles);
+  //   params.T_profiles = NULL;
+  // }
+  // // Liberar memoria
+  // free_temperature_field(T);
 
 
-  params.T_profiles = allocate_temperature_profiles(params.n_profiles, params.n_volumes);
-  solve_transient_parallel(&params, 50);
-  save_transient_profiles_csv(&params, "../data/transient_par/parallel_solve_transient");
-  // liberar T_profiles si fue asignado
-  if (params.T_profiles != NULL) {
-    free_temperature_profiles(params.T_profiles, params.n_profiles);
-    params.T_profiles = NULL;
-  }
+  // params.T_profiles = allocate_temperature_profiles(params.n_profiles, params.n_volumes);
+  // solve_transient_parallel(&params, 50);
+  // save_transient_profiles_csv(&params, "../data/transient_par/parallel_solve_transient");
+  // // liberar T_profiles si fue asignado
+  // if (params.T_profiles != NULL) {
+  //   free_temperature_profiles(params.T_profiles, params.n_profiles);
+  //   params.T_profiles = NULL;
+  // }
+
+  performance_sweep_parameters(&params);
 
   return 0;
 }
