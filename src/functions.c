@@ -13,7 +13,7 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Geometría y dominio
   params->L = 2.0e-2;       // Longitud del dominio [m]
-  params->n_volumes = 300;  // Número de volúmenes de control
+  params->n_volumes = 1000;  // Número de volúmenes de control
 
   // Condiciones iniciales y de frontera
   params->T_initial = 200.0;  // Temperatura inicial [°C]
@@ -21,10 +21,10 @@ void initialize_default_parameters(SimulationParams *params) {
 
   // Parámetros temporales
   params->total_time = 850.0;  // Tiempo total de simulación [s]
-  params->dt = 0.001;           // Paso de tiempo [s] (1 ms)
+  params->dt = 0.0001;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 5;
+  params->n_profiles = 200;
   double profile_step = params->total_time / (params->n_profiles - 1);
   for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
