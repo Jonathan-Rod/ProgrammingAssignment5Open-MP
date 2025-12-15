@@ -279,7 +279,7 @@ void solve_transient_sequential(double* T,
  * Paso a paso:
  * 1. Para cada volumen interno:
  *    a. Calcula termino independiente de la nueva temperatura (b)
- *    b. Aplica esquema backward Euler: T_new = b/T_old
+ *    b. Aplica esquema backward Euler: T_new = b/a_p
  *    c. Almacena en arreglo temporal
  * 2. Maneja volúmenes frontera separadamente
  *
@@ -325,7 +325,7 @@ void apply_boundary_conditions_sequential(
  * @param params Parámetros de simulación
  */
 void solve_heat_equation_parallel(double* T,
-                                  const SimulationParams* params);  // TODO
+                                  const SimulationParams* params, int n_time_steps);  // DONE
 
 /**
  * @brief Simulación transitoria paralela explícita guardando perfiles
@@ -335,8 +335,7 @@ void solve_heat_equation_parallel(double* T,
  * @param T Arreglo de temperaturas inicial
  * @param params Parámetros de simulación
  */
-void solve_transient_parallel(double* T,
-                              const SimulationParams* params);  // TODO
+void solve_transient_parallel(SimulationParams* params, int chunck_size);  // TODO
 
 /**
  * @brief Calcula nuevo paso de tiempo usando esquema explícito en paralelo
@@ -352,7 +351,7 @@ void solve_transient_parallel(double* T,
  * @param params Parámetros de simulación
  */
 void calculate_explicit_step_parallel(double* T_new, const double* T_old,
-                                      const SimulationParams* params);  // TODO
+                                      const SimulationParams* params);  // DONE
 
 /**
  * @brief Aplica condiciones de frontera en implementación paralela explícita
@@ -368,7 +367,7 @@ void calculate_explicit_step_parallel(double* T_new, const double* T_old,
  */
 void apply_boundary_conditions_parallel(
     double* T,
-    const SimulationParams* params);  // TODO
+    const SimulationParams* params);  // DONE
 
 // ============================================================================
 // ANÁLISIS DE PERFORMANCE Y BENCHMARKING

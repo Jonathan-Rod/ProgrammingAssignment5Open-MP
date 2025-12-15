@@ -24,7 +24,7 @@ void initialize_default_parameters(SimulationParams *params) {
   params->dt = 0.01;           // Paso de tiempo [s] (1 ms)
 
   // Inicializar arreglos auxiliares
-  params->n_profiles = 10;
+  params->n_profiles = 20;
   double profile_step = params->total_time / (params->n_profiles - 1);
   for (int i = 0; i < params->n_profiles; i++) {
     params->time_samples[i] = profile_step * i;
@@ -240,17 +240,11 @@ void solve_transient_sequential(double *T, SimulationParams *params) {
   int n_points = params->n_volumes + 2;
   int original_n_steps = params->n_time_steps;
 
-  // Inicializar temperaturas
-  for (int i = 0; i < n_points; i++) {
-    T[i] = params->T_initial;
-  }
-  apply_boundary_conditions_sequential(T, params);
-
   for (int i = 0; i < params->n_profiles; i++) {
     double target_time = params->time_samples[i];
 
     // Calcular pasos para este perfil
-    int steps_needed = (int)(target_time / params->dt + 0.5);
+    int steps_needed = (int)(target_time / params->dt);
     if (steps_needed > original_n_steps) {
       steps_needed = original_n_steps;
     }
@@ -270,6 +264,8 @@ void solve_transient_sequential(double *T, SimulationParams *params) {
 
   // Restaurar valor original
   params->n_time_steps = original_n_steps;
+  
+  printf("Sequential transient simulation completed\n");
 }
 
 void calculate_explicit_step_sequential(double *T_new, const double *T_old,
@@ -313,30 +309,111 @@ void apply_boundary_conditions_sequential(double *T,
 // SIMULACIÓN PARALELA (OPENMP - EXPLÍCITA)
 // ============================================================================
 
-void solve_heat_equation_parallel(double *T, const SimulationParams *params) {
-  // Configurar entorno OpenMP
-  configure_omp_environment(OMP_NUM_THREADS);
-  // TODO
+void solve_heat_equation_parallel(double *T, const SimulationParams *params, int n_time_steps) {
+  int n_points = params->n_volumes + 2;
 
-  printf("Parallel simulation completed\n");
+  // 1. Inicializar temperaturas
+  for (int i = 0; i < n_points; i++) {
+    T[i] = params->T_initial;
+  }
+
+  apply_boundary_conditions_parallel(T, params);
+
+  // 2. Arreglo temporal
+  double *T_temp = allocate_temperature_field(params->n_volumes);
+
+  // 3. Bucle temporal
+  for (int step = 0; step < n_time_steps; step++) {
+    // Calcular nuevo paso basado en T
+    calculate_explicit_step_parallel(T_temp, T, params);
+    apply_boundary_conditions_parallel(T_temp, params);
+
+    // Actualizar T
+    for (int i = 0; i < n_points; i++) {
+      T[i] = T_temp[i];
+    }
+  }
+  free_temperature_field(T_temp);
 }
 
-void solve_transient_parallel(double *T, const SimulationParams *params) {
+void solve_transient_parallel(SimulationParams *params, int chunck_size) {
   // Configurar entorno OpenMP
   configure_omp_environment(OMP_NUM_THREADS);
-  // TODO
+  
+  int n_points = params->n_volumes + 2;
+  int original_n_steps = params->n_time_steps;
+
+  // Precompute steps needed for each profile
+  int *steps = (int*)malloc(params->n_profiles * sizeof(int));
+  for (int i = 0; i < params->n_profiles; i++) {
+    double target_time = params->time_samples[i];
+    int steps_needed = (int)(target_time / params->dt);
+    if (steps_needed > original_n_steps) {
+      steps_needed = original_n_steps;
+    }
+    steps[i] = steps_needed;
+  }
+  
+  int i, j, n_time_steps;
+  #pragma omp parallel for schedule(dynamic, chunck_size) shared(params, steps) private(i, j, n_time_steps)
+  for (i = 0; i < params->n_profiles; i++) {
+    
+    double *T = allocate_temperature_field(params->n_volumes);
+    
+    n_time_steps = steps[i];
+    solve_heat_equation_parallel(T, params, n_time_steps);
+
+    // Guardar perfil
+    for (j = 0; j < n_points; j++) {
+      params->T_profiles[i][j] = T[j];
+    }
+
+    free_temperature_field(T);
+
+    #pragma omp critical
+    printf("Calculando perfil %d de %d en tiempo %.2f\n", i + 1,
+           params->n_profiles, params->time_samples[i]);
+  }
+
+  free(steps);
   printf("Parallel transient simulation completed\n");
 }
 
 void calculate_explicit_step_parallel(double *T_new, const double *T_old,
                                       const SimulationParams *params) {
-  // TODO
-  // Los bordes se manejan en apply_boundary_conditions
+  int i;
+  double b;
+  int n_points = params->n_volumes + 2;
+
+  // Primer nodo interno (i=1) - Neumann izquierdo: T[0] = T[1]
+  i = 1;
+  b = params->aW * T_old[1] + params->aE * T_old[i + 1] +
+      (params->aP0 - (params->aW + params->aE)) * T_old[i];
+  T_new[i] = b / params->aP;
+
+  // Nodos internos centrales (i=2 a n_volumes - 1)
+  for (i = 2; i <= n_points - 3; i++) {
+    b = params->aW * T_old[i - 1] + params->aE * T_old[i + 1] +
+        (params->aP0 - (params->aE + params->aW)) * T_old[i];
+    T_new[i] = b / params->aP;
+  }
+
+  // Último nodo interno (i=n_volumes+1)
+  i = n_points - 2;
+  b = params->aW * T_old[i - 1] + params->aEb * params->T_cooled +
+      (params->aP0 - params->aW) * T_old[i];
+  T_new[i - 1] = b / params->aP;
 }
 
 void apply_boundary_conditions_parallel(double *T,
                                         const SimulationParams *params) {
-  // TODO
+  int n_points = params->n_volumes + 2;
+
+  // Borde izquierdo: Neumann (T[0] = T[1])
+  T[0] = T[1];
+
+  // Borde derecho: Dirichlet (T[n_points-1] = T_cooled)
+  T[n_points - 1] = params->T_cooled;
 }
 
 // ============================================================================
@@ -461,7 +538,7 @@ void save_temperature_profile_csv(const double *T,
   FILE *file = safe_file_open(filename, "w");
   if (file == NULL) return;
 
-  fprintf(file, "x (m),T (C)"); // compatible with csv files (otherwise wont open in colab)
+  fprintf(file, "x (m),T (C)\n"); // compatible with csv files (otherwise wont open in colab)
   for (int i = 0; i < n_points; i++) {
     double x;
     if (i == 0) {
@@ -698,7 +775,7 @@ void verify_parallel_correctness(const SimulationParams *params) {
   // Probar con diferentes números de hilos
   int num_threads = OMP_NUM_THREADS;
   configure_omp_environment(num_threads);
-  solve_transient_parallel(T_par, &params_par);
+  solve_transient_parallel(&params_par, 15);
 
   double tolerance = 1e-12;
   int equivalent = 1;

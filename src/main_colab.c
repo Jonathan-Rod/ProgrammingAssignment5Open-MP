@@ -12,7 +12,7 @@ void print_parameters(SimulationParams *params) {
 
   printf("\nGeometry Parameters:\n");
   printf("        L: %.3f m\n", params->L);
-  printf("       dx: %.3f m\n", params->dx);
+  printf("       dx: %.6f m\n", params->dx);
   printf("n_volumes: %d\n", params->n_volumes);
 
   printf("\nThermal Conditions:\n");
@@ -54,6 +54,12 @@ int main() {
   validate_convergence(&params);
   solve_transient_sequential(T, &params);
   save_transient_profiles_csv(&params, "data/transient_seq/sequential_solve_transient");
+  // liberar T_profiles si fue asignado
+  if (params.T_profiles != NULL) {
+    free_temperature_profiles(params.T_profiles, params.n_profiles);
+  }
+  solve_transient_parallel(&params, 2);
+  save_transient_profiles_csv(&params, "data/transient_par/parallel_solve_transient");
   // liberar T_profiles si fue asignado
   if (params.T_profiles != NULL) {
     free_temperature_profiles(params.T_profiles, params.n_profiles);
